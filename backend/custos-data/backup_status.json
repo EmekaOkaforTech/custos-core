@@ -1,0 +1,9 @@
+{
+  "status": "succeeded",
+  "last_attempt": "2026-01-18T13:52:40.815760",
+  "last_success": "2026-01-18T13:52:40.815765",
+  "path": "custos-data/backups/backup-20260118-135240.db",
+  "checksum": "0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5",
+  "version": "1",
+  "meta_path": "custos-data/backups/backup-20260118-135240.meta.json"
+}

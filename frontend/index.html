@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Custos Core</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Custos</h1>
+  </header>
+  <main class="container">
+    <section class="brief-header">
+      <div class="brief-title" id="brief-title">Pre‑Meeting Brief</div>
+      <div class="brief-meta">
+        <div class="status" id="brief-timer">Next meeting soon</div>
+        <div class="status" id="brief-status">Updated just now</div>
+        <div class="status hidden" id="brief-offline">Using cached briefing (offline)</div>
+        <div class="status hidden" id="brief-attention">Attention needed</div>
+        <a class="button-link" id="status-link" href="status.html">Status</a>
+      </div>
+    </section>
+    <div class="banner" id="brief-banner"></div>
+
+    <section class="cards" id="brief-cards">
+      <div class="card">
+        <h2>Loading briefing…</h2>
+        <p class="muted">Waiting for `/api/briefings/next`.</p>
+      </div>
+    </section>
+
+    <section class="section" id="commitments-section">
+      <h3>Commitments</h3>
+      <div class="cards" id="commitments"></div>
+    </section>
+
+    <section class="section" id="today-section">
+      <h3>Today</h3>
+      <div class="cards" id="today"></div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
