@@ -22,7 +22,6 @@ def create_db_engine():
         if not url.query.get("password"):
             url = url.update_query_dict({"password": key})
             database_url = str(url)
-        connect_args["password"] = key
         try:
             import sqlcipher3
         except ImportError as exc:
