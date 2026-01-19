@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from . import models
@@ -12,7 +13,24 @@ from .settings import allow_plaintext_db, get_database_key, get_database_url
 def create_db_engine():
     database_url = get_database_url()
     connect_args = {"check_same_thread": False}
-    engine = create_engine(database_url, connect_args=connect_args)
+    engine_kwargs = {"connect_args": connect_args}
+    if database_url.startswith("sqlite+pysqlcipher:///") and not allow_plaintext_db():
+        key = get_database_key()
+        if not key:
+            raise RuntimeError("CUSTOS_DATABASE_KEY is required for SQLCipher encryption.")
+        url = make_url(database_url)
+        if not url.query.get("password"):
+            url = url.update_query_dict({"password": key})
+            database_url = str(url)
+        connect_args["password"] = key
+        try:
+            import sqlcipher3
+        except ImportError as exc:
+            raise RuntimeError(
+                "SQLCipher driver missing. Install sqlcipher3-binary and avoid conda base."
+            ) from exc
+        engine_kwargs["module"] = sqlcipher3.dbapi2
+    engine = create_engine(database_url, **engine_kwargs)
     if not allow_plaintext_db():
         _attach_sqlcipher_key(engine)
     return engine
