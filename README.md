@@ -172,6 +172,16 @@ See `custos-core/PROVISIONING.md` for clean install and update workflow guidance
 
 ## Admin Key Ops
 Scripts for key rotation and recovery live in `custos-core/scripts/admin_key.sh` and `custos-core/scripts/admin_key_smoke.sh`.
+Admin key material is persisted at `backend/custos-data/admin_api_key.json`.
+
+Dev reset procedure (disposable environments only):
+```bash
+rm -f backend/custos-data/admin_api_key.json
+export CUSTOS_ADMIN_API_ENABLED=1
+export CUSTOS_ENV=dev
+export CUSTOS_ADMIN_BOOTSTRAP_KEY="bootstrap-key"
+```
+Restart the dev server and rotate once to a known key before running the smoke test.
 
 ## Frontend UI Verification (Offline/Cached)
 ```bash
