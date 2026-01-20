@@ -28,12 +28,26 @@
         <p class="muted" id="status-ingestion">Ingestion: unknown</p>
         <p class="muted" id="status-backup">Backup: unknown</p>
         <p class="muted" id="status-restore">Restore: unknown</p>
+        <p class="muted" id="status-storage">Storage: unknown</p>
+        <p class="muted" id="status-recovery">Recovery check: unknown</p>
         <p class="muted" id="status-errors">Errors: 0</p>
         <button class="button-link hidden" id="backup-action">Run backup now</button>
       </div>
     </section>
+
+    <section class="card">
+      <h3>API Key</h3>
+      <form class="filters" id="api-key-form">
+        <label for="api-key-input">API Key</label>
+        <input id="api-key-input" name="api_key" type="password" placeholder="set or rotate" />
+        <button type="submit">Save</button>
+        <button type="button" id="api-key-clear">Clear</button>
+      </form>
+      <p class="muted" id="api-key-status">No API key stored in browser.</p>
+    </section>
   </main>
 
+  <script src="config.js"></script>
   <script type="module" src="status.js"></script>
 </body>
 </html>
