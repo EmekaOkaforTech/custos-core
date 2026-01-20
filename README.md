@@ -91,6 +91,11 @@ Run a deterministic seed against the configured database:
 cd custos-core/backend
 python -m app.scripts.seed_data
 ```
+Or run the wrapper script from the backend directory:
+```bash
+cd custos-core/backend
+python scripts/seed-data.py
+```
 
 ## Admin Settings (Enterprise)
 Network exposure (local-only by default):
