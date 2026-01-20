@@ -50,7 +50,7 @@ def admin_api_enabled() -> bool:
 
 
 def get_admin_bootstrap_key() -> str:
-    return os.getenv("CUSTOS_ADMIN_BOOTSTRAP_KEY", "")
+    return os.getenv("CUSTOS_ADMIN_BOOTSTRAP_KEY", "").strip()
 
 
 def get_cors_origins() -> list[str]:

@@ -43,7 +43,8 @@ def rotate_key(
     current = get_admin_key()
     if not current:
         bootstrap = get_admin_bootstrap_key()
-        if get_env() != "dev" or not bootstrap or x_api_key != bootstrap:
+        provided = (x_api_key or "").strip()
+        if get_env() != "dev" or not bootstrap or provided != bootstrap:
             raise HTTPException(status_code=401, detail="Admin key not configured.")
     else:
         _require_admin_key(x_api_key)
