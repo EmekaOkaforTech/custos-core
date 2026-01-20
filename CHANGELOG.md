@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.0
 - Admin API endpoints with opt-in dev gating and bootstrap rotation
 - Admin key smoke and rotation scripts under `scripts/`
 - Frontend API base configuration (`config.js`) and apiUrl wiring for briefings/status/people
