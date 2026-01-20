@@ -27,6 +27,10 @@ assert_code() {
 }
 
 initial=$(code -H "X-API-Key: $OLD_KEY" "$ADMIN_URL/api/admin/settings")
+if [[ "$initial" == "404" ]]; then
+  echo "Admin API not found. Set CUSTOS_ADMIN_API_ENABLED=1 (and CUSTOS_ENV=dev for bootstrap)." >&2
+  exit 1
+fi
 assert_code 200 "$initial"
 
 after_rotate=$(curl -sS -X POST "$ADMIN_URL/api/admin/api-key/rotate" \

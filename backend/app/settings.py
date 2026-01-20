@@ -41,6 +41,18 @@ def get_calendar_poll_seconds() -> int:
     return int(os.getenv("CUSTOS_CALENDAR_POLL_SECONDS", "900"))
 
 
+def get_env() -> str:
+    return os.getenv("CUSTOS_ENV", "prod").lower()
+
+
+def admin_api_enabled() -> bool:
+    return os.getenv("CUSTOS_ADMIN_API_ENABLED", "0") == "1"
+
+
+def get_admin_bootstrap_key() -> str:
+    return os.getenv("CUSTOS_ADMIN_BOOTSTRAP_KEY", "")
+
+
 def get_cors_origins() -> list[str]:
     raw = os.getenv("CUSTOS_CORS_ORIGINS", "").strip()
     if raw:

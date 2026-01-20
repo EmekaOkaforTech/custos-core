@@ -119,6 +119,19 @@ curl -i -X OPTIONS http://192.168.10.50:8000/api/briefings/next -H "Origin: http
 curl -i http://192.168.10.50:8000/api/health -H "Origin: http://192.168.10.50:5173" | sed -n '1,30p'
 ```
 
+## Admin API (Dev Only)
+Admin endpoints are disabled by default.
+```bash
+export CUSTOS_ADMIN_API_ENABLED=1
+export CUSTOS_ENV=dev
+export CUSTOS_ADMIN_BOOTSTRAP_KEY="bootstrap-key"
+```
+Verification:
+```bash
+curl -i http://192.168.10.50:8000/api/admin/settings | sed -n '1,30p'
+curl -i -X POST http://192.168.10.50:8000/api/admin/api-key/rotate -H "X-API-Key: bootstrap-key" -H "Content-Type: application/json" -d '{"new_key":"temp-key"}' | sed -n '1,30p'
+```
+
 ## Seed Data (Non-Production)
 Run a deterministic seed against the configured database:
 ```bash

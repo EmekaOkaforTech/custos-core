@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.briefings import router as briefings_router
 from app.api.commitments import router as commitments_router
+from app.api.admin import router as admin_router
 from app.api.ingestion import router as ingestion_router
 from app.api.status import router as status_router
 from app.api.people import router as people_router
@@ -24,6 +25,7 @@ app.include_router(briefings_router)
 app.include_router(commitments_router)
 app.include_router(status_router)
 app.include_router(people_router)
+app.include_router(admin_router)
 
 
 @app.on_event("startup")
