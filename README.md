@@ -74,6 +74,15 @@ bash custos-core/scripts/dev.sh
 ## Run Locally
 ```bash
 export CUSTOS_DATABASE_KEY="your-key"
+# Local-only (default)
+export CUSTOS_BIND_ADDR=127.0.0.1
+make dev
+```
+
+LAN testing (dev/disposable only):
+```bash
+export CUSTOS_DATABASE_KEY="your-key"
+export CUSTOS_BIND_ADDR=0.0.0.0
 make dev
 ```
 
