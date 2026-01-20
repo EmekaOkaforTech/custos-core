@@ -1,4 +1,4 @@
-import { computeBriefMeta, formatDate, statusLabel } from './ui-state.js';
+import { apiUrl, computeBriefMeta, formatDate, getApiHeaders, statusLabel } from './ui-state.js';
 
 const briefTitle = document.getElementById('brief-title');
 const briefTimer = document.getElementById('brief-timer');
@@ -36,9 +36,9 @@ function renderCommitment(item) {
   button.textContent = item.acknowledged ? 'Undo' : 'Acknowledge';
   button.addEventListener('click', async () => {
     const next = !item.acknowledged;
-    const response = await fetch(`/api/commitments/${item.id}/ack`, {
+    const response = await fetch(apiUrl(`/api/commitments/${item.id}/ack`), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
       body: JSON.stringify({ acknowledged: next }),
     });
     if (response.ok) {
@@ -82,7 +82,7 @@ function renderTodayMeeting(item) {
 }
 
 async function loadBriefings() {
-  const nextResponse = await fetch('/api/briefings/next');
+  const nextResponse = await fetch(apiUrl('/api/briefings/next'), { headers: getApiHeaders() });
   const nextData = await nextResponse.json();
 
   const meta = computeBriefMeta({
@@ -128,7 +128,7 @@ async function loadBriefings() {
     commitmentsSection.innerHTML = '<div class="card"><p class="muted">No open commitments.</p></div>';
   }
 
-  const todayResponse = await fetch('/api/briefings/today');
+  const todayResponse = await fetch(apiUrl('/api/briefings/today'), { headers: getApiHeaders() });
   const todayData = await todayResponse.json();
   todaySection.innerHTML = '';
   if (todayData.meetings.length) {
@@ -137,9 +137,9 @@ async function loadBriefings() {
     todaySection.innerHTML = '<div class="card"><p class="muted">No meetings scheduled for today.</p></div>';
   }
 
-  const healthResponse = await fetch('/api/health');
+  const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
-  const statusResponse = await fetch('/api/status');
+  const statusResponse = await fetch(apiUrl('/api/status'), { headers: getApiHeaders() });
   const statusData = await statusResponse.json();
   const needsAttention = statusData.error_count > 0 || !statusData.db_encrypted || healthData.status !== 'ok';
   if (needsAttention) {
