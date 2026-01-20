@@ -104,6 +104,21 @@ Quick verify (dev server):
 curl -s http://127.0.0.1:5173/people.html | grep -n config.js
 ```
 
+## Dev CORS (Frontend on 5173)
+CORS is disabled by default. Enable for dev UI access only:
+```bash
+export CUSTOS_DEV_CORS=1
+```
+Or set an explicit allowlist:
+```bash
+export CUSTOS_CORS_ORIGINS="http://127.0.0.1:5173,http://192.168.10.50:5173"
+```
+Verify preflight + response headers:
+```bash
+curl -i -X OPTIONS http://192.168.10.50:8000/api/briefings/next -H "Origin: http://192.168.10.50:5173" -H "Access-Control-Request-Method: GET" | sed -n '1,30p'
+curl -i http://192.168.10.50:8000/api/health -H "Origin: http://192.168.10.50:5173" | sed -n '1,30p'
+```
+
 ## Seed Data (Non-Production)
 Run a deterministic seed against the configured database:
 ```bash

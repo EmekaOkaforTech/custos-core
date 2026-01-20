@@ -39,3 +39,15 @@ def get_calendar_enabled() -> bool:
 
 def get_calendar_poll_seconds() -> int:
     return int(os.getenv("CUSTOS_CALENDAR_POLL_SECONDS", "900"))
+
+
+def get_cors_origins() -> list[str]:
+    raw = os.getenv("CUSTOS_CORS_ORIGINS", "").strip()
+    if raw:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+    if os.getenv("CUSTOS_DEV_CORS", "0") == "1":
+        return [
+            "http://127.0.0.1:5173",
+            "http://192.168.10.50:5173",
+        ]
+    return []
