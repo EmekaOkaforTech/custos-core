@@ -24,6 +24,8 @@ def get_settings(x_api_key: str | None = Header(default=None, alias="X-API-Key")
     if not admin_api_enabled():
         raise HTTPException(status_code=404, detail="Admin API disabled.")
     configured = bool(get_admin_key())
+    if configured:
+        _require_admin_key(x_api_key)
     return {
         "admin_api_enabled": True,
         "key_configured": configured,
