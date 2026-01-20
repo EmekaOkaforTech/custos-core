@@ -1,4 +1,4 @@
-import { formatDate } from './ui-state.js';
+import { apiUrl, formatDate } from './ui-state.js';
 
 const peopleList = document.getElementById('people-list');
 const timeline = document.getElementById('timeline');
@@ -42,7 +42,7 @@ function renderTimelineEntry(entry) {
 }
 
 async function loadPeople() {
-  const response = await fetch('/api/people');
+  const response = await fetch(apiUrl('/api/people'));
   const data = await response.json();
   peopleStatus.textContent = `Updated ${formatDate(new Date().toISOString())}`;
   peopleList.innerHTML = '';
@@ -55,7 +55,7 @@ async function loadPeople() {
 }
 
 async function loadTimeline(personId) {
-  const response = await fetch(`/api/people/${personId}/timeline`);
+  const response = await fetch(apiUrl(`/api/people/${personId}/timeline`));
   if (!response.ok) {
     timeline.innerHTML = '<div class="card"><p class="muted">No source records available for this period.</p></div>';
     return;

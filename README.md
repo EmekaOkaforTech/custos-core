@@ -83,7 +83,17 @@ Frontend defaults to same-origin `/api/*`. For local dev with the static server 
 // custos-core/frontend/config.js
 window.CUSTOS_API_BASE = "http://127.0.0.1:8000";
 ```
+For cross-device browsing, use the host IP instead of loopback:
+```js
+// custos-core/frontend/config.js
+window.CUSTOS_API_BASE = "http://192.168.10.50:8000";
+```
 Leave it empty to keep same-origin behavior in production.
+
+Quick verify (dev server):
+```bash
+curl -s http://127.0.0.1:5173/people.html | grep -n config.js
+```
 
 ## Seed Data (Non-Production)
 Run a deterministic seed against the configured database:

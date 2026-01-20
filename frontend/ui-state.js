@@ -3,6 +3,42 @@ export function formatDate(value) {
   return new Date(value).toISOString().replace('T', ' ').slice(0, 16);
 }
 
+export function getApiBase() {
+  if (typeof window !== 'undefined' && window.CUSTOS_API_BASE) {
+    return normalizeApiBase(window.CUSTOS_API_BASE);
+  }
+  return '';
+}
+
+export function apiUrl(path) {
+  const base = getApiBase();
+  if (!base) return path;
+  return `${base}${path}`;
+}
+
+export function getApiHeaders() {
+  const headers = {};
+  if (typeof localStorage !== 'undefined') {
+    const apiKey = localStorage.getItem('custos_api_key');
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+  }
+  return headers;
+}
+
+export function getStoredApiKey() {
+  if (typeof localStorage === 'undefined') {
+    return '';
+  }
+  return localStorage.getItem('custos_api_key') || '';
+}
+
+function normalizeApiBase(value) {
+  if (!value) return '';
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
 export function statusLabel(status, lastSourceAt) {
   const relative = relativeFromNow(lastSourceAt);
   if (status === 'missing') return 'Missing: no recent context';
