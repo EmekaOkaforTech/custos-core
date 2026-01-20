@@ -1,0 +1,6 @@
+**/__pycache__/
+**/*.pyc
+backend/custos-data/*.json
+backend/custos-data/backups/
+backend/custos.db
+admin_key_smoke_*.log
