@@ -27,7 +27,8 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$BACKEND_DIR"
-python -m uvicorn app.main:app --reload --port 8000 &
+HOST=${CUSTOS_BIND_ADDR:-127.0.0.1}
+python -m uvicorn app.main:app --reload --port 8000 --host "$HOST" &
 BACKEND_PID=$!
 
 python -m http.server 5173 --directory "$FRONTEND_DIR" &
@@ -39,6 +40,6 @@ WORKER_PID=$!
 python -m app.calendar.runner 2>&1 | sed 's/^/calendar: /' &
 CALENDAR_PID=$!
 
-echo "Backend: http://localhost:8000"
+echo "Backend: http://$HOST:8000"
 echo "Frontend: http://localhost:5173"
 wait
