@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Custos">
+  <rect width="64" height="64" rx="14" fill="#f5f1ea"/>
+  <circle cx="32" cy="32" r="20" fill="#efe7dc" stroke="#b08f6a" stroke-width="4"/>
+  <path d="M32 20c-6.6 0-12 5.4-12 12s5.4 12 12 12" fill="none" stroke="#2b2a26" stroke-width="4" stroke-linecap="round"/>
+</svg>
