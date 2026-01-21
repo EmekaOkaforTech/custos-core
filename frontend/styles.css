@@ -12,6 +12,17 @@
   --chip: #efe7dc;
   --focus: #b08f6a66;
   --shadow: 0 4px 12px rgba(33, 29, 24, 0.06);
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-lg: 14px;
+  --text-xl: 16px;
+  --text-xxl: 18px;
 }
 
 * { box-sizing: border-box; }
@@ -23,17 +34,17 @@ body {
 }
 
 .site-header {
-  padding: 18px 28px 0 28px;
+  padding: var(--space-4) var(--space-5) 0 var(--space-5);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
 .site-header h1 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-xxl);
   font-weight: 600;
   letter-spacing: 0.2px;
 }
@@ -41,26 +52,26 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
 .global-nav {
   display: flex;
-  gap: 12px;
+  gap: var(--space-2);
   align-items: center;
   flex-wrap: wrap;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 6px 10px;
+  padding: var(--space-1) var(--space-2);
   box-shadow: var(--shadow);
 }
 
 .nav-link {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
   text-decoration: none;
-  padding: 4px 8px;
+  padding: calc(var(--space-1) / 2) var(--space-2);
   border-radius: 999px;
 }
 
@@ -83,33 +94,33 @@ body {
 .container {
   max-width: 980px;
   margin: 0 auto;
-  padding: 20px 28px 60px 28px;
+  padding: var(--space-4) var(--space-5) var(--space-5) var(--space-5);
 }
 
 .brief-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
-  gap: 12px;
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
 }
 
 .brief-title {
-  font-size: 16px;
+  font-size: var(--text-xl);
   font-weight: 600;
 }
 
 .brief-meta {
   display: flex;
-  gap: 8px;
+  gap: var(--space-1);
   align-items: center;
   flex-wrap: wrap;
 }
 
 .status {
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  padding: 4px 10px;
+  padding: calc(var(--space-1) / 2) var(--space-2);
   background: var(--chip);
   border-radius: 999px;
   border: 1px solid var(--line);
@@ -125,59 +136,59 @@ body {
   border: 1px solid var(--line);
   background: #f6efe6;
   color: var(--muted);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
   border-radius: 10px;
-  margin-bottom: 12px;
-  font-size: 12px;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
 }
 
 .banner[data-kind="error"] { background: #f9eee9; color: var(--error); }
 
 .cards {
   display: grid;
-  gap: 12px;
+  gap: var(--space-2);
 }
 
 .card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 14px;
+  padding: var(--space-3);
   box-shadow: var(--shadow);
 }
 
 .card h2 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-lg);
 }
 
 .card p {
-  margin: 0 0 8px 0;
-  font-size: 12px;
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 
 .meta {
   display: flex;
-  gap: 6px;
+  gap: var(--space-1);
   flex-wrap: wrap;
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
 .status-row {
   display: flex;
-  gap: 6px;
+  gap: var(--space-1);
   flex-wrap: wrap;
-  margin-top: 6px;
+  margin-top: var(--space-1);
 }
 
 .status-pill {
   background: var(--chip);
   border-radius: 8px;
-  padding: 2px 6px;
+  padding: calc(var(--space-1) / 2) var(--space-1);
   border: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
 
@@ -200,19 +211,19 @@ body {
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
 }
 
 .section {
-  margin-top: 24px;
+  margin-top: var(--space-4);
 }
 
 .section h3 {
-  margin: 0 0 8px 0;
-  font-size: 13px;
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-md);
   color: var(--muted);
 }
 
@@ -223,10 +234,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-2);
 }
 
 .commitment-meta {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted);
 }
