@@ -63,7 +63,9 @@ const lineUses = [
   { selector: '.brief-title', token: '--line-tight' },
   { selector: '.card h2', token: '--line-tight' },
   { selector: '.section h3', token: '--line-tight' },
+  { selector: '.nav-link', token: '--line-compact' },
   { selector: '.status', token: '--line-compact' },
+  { selector: '.button-link', token: '--line-compact' },
   { selector: '.muted', token: '--line-compact' },
   { selector: '.summary-text', token: '--line-compact' },
 ];

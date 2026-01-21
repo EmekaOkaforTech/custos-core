@@ -75,6 +75,8 @@ body {
 
 .nav-link {
   font-size: var(--text-sm);
+  line-height: var(--line-compact);
+  font-family: inherit;
   color: var(--muted);
   text-decoration: none;
   padding: calc(var(--space-1) / 2) var(--space-2);
@@ -230,6 +232,7 @@ body {
   color: var(--muted);
   font-size: var(--text-sm);
   line-height: var(--line-compact);
+  font-family: inherit;
   cursor: pointer;
   padding: 0;
   text-decoration: underline;
@@ -271,6 +274,7 @@ body {
   padding: calc(var(--space-1) / 2) var(--space-2);
   font-size: var(--text-sm);
   line-height: var(--line-compact);
+  font-family: inherit;
   background: var(--surface);
   color: var(--ink);
 }
@@ -286,6 +290,7 @@ body {
   padding: calc(var(--space-1) / 2) var(--space-2);
   font-size: var(--text-sm);
   line-height: var(--line-compact);
+  font-family: inherit;
   background: var(--chip);
   color: var(--ink);
 }
