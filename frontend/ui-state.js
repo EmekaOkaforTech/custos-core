@@ -46,6 +46,17 @@ export function statusLabel(status, lastSourceAt) {
   return `Last source: ${relative}`;
 }
 
+export function isSeedIdentifier(value) {
+  if (!value) return false;
+  if (value.startsWith('seed://')) return true;
+  return (
+    value.startsWith('p_seed_') ||
+    value.startsWith('m_seed_') ||
+    value.startsWith('sr_seed_') ||
+    value.startsWith('c_seed_')
+  );
+}
+
 export function relativeFromNow(value) {
   if (!value) return 'no recent source';
   const then = new Date(value);
