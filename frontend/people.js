@@ -1,4 +1,4 @@
-import { apiUrl, formatDate, isSeedIdentifier } from './ui-state.js';
+import { SEED_BANNER_COPY, apiUrl, formatDate, isSeedIdentifier } from './ui-state.js';
 
 const peopleList = document.getElementById('people-list');
 const timeline = document.getElementById('timeline');
@@ -6,6 +6,7 @@ const peopleStatus = document.getElementById('people-status');
 const peopleBanner = document.getElementById('people-banner');
 
 function setBanner(message) {
+  if (!peopleBanner) return;
   if (!message) {
     peopleBanner.style.display = 'none';
     peopleBanner.textContent = '';
@@ -57,7 +58,7 @@ async function loadPeople() {
   const data = await response.json();
   peopleStatus.textContent = `Updated ${formatDate(new Date().toISOString())}`;
   const hasSeedPeople = data.some(person => isSeedIdentifier(person.id));
-  setBanner(hasSeedPeople ? 'Showing example data from seeded fixtures.' : '');
+  setBanner(hasSeedPeople ? SEED_BANNER_COPY : '');
   peopleList.innerHTML = '';
   if (!data.length) {
     peopleList.innerHTML = '<div class="card"><p class="muted">No interactions recorded yet.</p></div>';

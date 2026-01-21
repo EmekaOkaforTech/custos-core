@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
-import { isSeedIdentifier } from '../ui-state.js';
+import { SEED_BANNER_COPY, isSeedIdentifier } from '../ui-state.js';
 
 const seedValues = [
   'seed://meeting/m_seed_001',
@@ -23,7 +23,16 @@ for (const value of nonSeedValues) {
 const peopleHtml = fs.readFileSync(new URL('../people.html', import.meta.url), 'utf8');
 assert.match(peopleHtml, /id="people-banner"/, 'people-banner container missing');
 
+assert.equal(
+  SEED_BANNER_COPY,
+  'Showing example data from seeded fixtures.',
+  'seed banner copy constant changed'
+);
+
 const appJs = fs.readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-assert.match(appJs, /Showing example data from seeded fixtures\./, 'seed banner copy missing in app.js');
+assert.match(appJs, /SEED_BANNER_COPY/, 'seed banner copy constant not used in app.js');
+
+const peopleJs = fs.readFileSync(new URL('../people.js', import.meta.url), 'utf8');
+assert.match(peopleJs, /SEED_BANNER_COPY/, 'seed banner copy constant not used in people.js');
 
 console.log('seed-awareness.test.mjs: ok');

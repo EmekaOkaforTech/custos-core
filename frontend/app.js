@@ -1,4 +1,4 @@
-import { apiUrl, computeBriefMeta, formatDate, getApiHeaders, isSeedIdentifier, statusLabel } from './ui-state.js';
+import { SEED_BANNER_COPY, apiUrl, computeBriefMeta, formatDate, getApiHeaders, isSeedIdentifier, statusLabel } from './ui-state.js';
 
 const briefTitle = document.getElementById('brief-title');
 const briefTimer = document.getElementById('brief-timer');
@@ -85,7 +85,7 @@ async function loadBriefings() {
   const nextResponse = await fetch(apiUrl('/api/briefings/next'), { headers: getApiHeaders() });
   const nextData = await nextResponse.json();
   const hasSeedSource = nextData.cards?.some(card => card.source && isSeedIdentifier(card.source.uri));
-  setBanner('info', hasSeedSource ? 'Showing example data from seeded fixtures.' : '');
+  setBanner('info', hasSeedSource ? SEED_BANNER_COPY : '');
 
   const meta = computeBriefMeta({
     cached: nextData.cached,

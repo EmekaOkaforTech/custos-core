@@ -46,6 +46,8 @@ export function statusLabel(status, lastSourceAt) {
   return `Last source: ${relative}`;
 }
 
+export const SEED_BANNER_COPY = 'Showing example data from seeded fixtures.';
+
 export function isSeedIdentifier(value) {
   if (!value) return false;
   if (value.startsWith('seed://')) return true;
