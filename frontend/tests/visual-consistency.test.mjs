@@ -16,6 +16,9 @@ const requiredVars = {
   '--text-lg': '14px',
   '--text-xl': '16px',
   '--text-xxl': '18px',
+  '--line-tight': '1.2',
+  '--line-compact': '1.4',
+  '--line-base': '1.5',
 };
 
 for (const [name, value] of Object.entries(requiredVars)) {
@@ -39,6 +42,7 @@ for (const { selector, prop, token } of selectorUses) {
 }
 
 const typeUses = [
+  { selector: 'body', token: '--text-xl' },
   { selector: '.site-header h1', token: '--text-xxl' },
   { selector: '.brief-title', token: '--text-xl' },
   { selector: '.card h2', token: '--text-lg' },
@@ -51,6 +55,22 @@ const typeUses = [
 for (const { selector, token } of typeUses) {
   const pattern = new RegExp(`${selector}[^}]*font-size\\s*:\\s*var\\(${token}\\)`);
   assert.match(css, pattern, `Expected ${selector} font-size to use ${token}`);
+}
+
+const lineUses = [
+  { selector: 'body', token: '--line-base' },
+  { selector: '.site-header h1', token: '--line-tight' },
+  { selector: '.brief-title', token: '--line-tight' },
+  { selector: '.card h2', token: '--line-tight' },
+  { selector: '.section h3', token: '--line-tight' },
+  { selector: '.status', token: '--line-compact' },
+  { selector: '.muted', token: '--line-compact' },
+  { selector: '.summary-text', token: '--line-compact' },
+];
+
+for (const { selector, token } of lineUses) {
+  const pattern = new RegExp(`${selector}[^}]*line-height\\s*:\\s*var\\(${token}\\)`);
+  assert.match(css, pattern, `Expected ${selector} line-height to use ${token}`);
 }
 
 console.log('visual-consistency.test.mjs: ok');
