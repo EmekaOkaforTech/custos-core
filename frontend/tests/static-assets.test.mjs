@@ -6,6 +6,7 @@ const files = ['index.html', 'people.html', 'status.html'];
 for (const file of files) {
   const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   assert.match(html, /<link rel="icon" href="favicon\.svg"/, `${file}: favicon link missing`);
+  assert.match(html, /<link rel="icon" href="favicon\.ico"/, `${file}: favicon ico link missing`);
   assert.match(html, /<meta name="description" content="Custos — calm, local-first meeting briefings and context\." \/>/, `${file}: description meta missing`);
   assert.match(html, /<meta name="theme-color" content="#f5f1ea" \/>/, `${file}: theme-color meta missing`);
 }
@@ -20,5 +21,8 @@ for (const [file, pattern] of Object.entries(titleChecks)) {
   const html = fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
   assert.match(html, pattern, `${file}: title mismatch`);
 }
+
+const faviconIco = fs.readFileSync(new URL('../favicon.ico', import.meta.url));
+assert.ok(faviconIco.byteLength > 0, 'favicon.ico missing or empty');
 
 console.log('static-assets.test.mjs: ok');
