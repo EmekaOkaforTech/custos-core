@@ -7,6 +7,7 @@ import {
   getApiBase,
   isSeedIdentifier,
   isSetupComplete,
+  setApiBase,
   setSetupComplete,
   statusLabel,
 } from './ui-state.js';
@@ -110,6 +111,7 @@ async function verifySetup(apiBase) {
     if (!response.ok) {
       throw new Error('Health check failed');
     }
+    setApiBase(apiBase);
     setSetupComplete(true);
     showSetupBanner(false);
     loadBriefings();
@@ -207,6 +209,13 @@ if (setupConnect) {
     }
     verifySetup(value);
   });
+}
+
+if (setupApiBase) {
+  const storedBase = getApiBase();
+  if (storedBase) {
+    setupApiBase.value = storedBase;
+  }
 }
 
 loadBriefings().catch(() => {

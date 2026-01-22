@@ -7,6 +7,12 @@ export function getApiBase() {
   if (typeof window !== 'undefined' && window.CUSTOS_API_BASE) {
     return normalizeApiBase(window.CUSTOS_API_BASE);
   }
+  if (typeof localStorage !== 'undefined') {
+    return normalizeApiBase(localStorage.getItem('custos_api_base') || '');
+  }
+  if (typeof globalThis !== 'undefined' && globalThis.__custos_api_base) {
+    return normalizeApiBase(globalThis.__custos_api_base);
+  }
   return '';
 }
 
@@ -32,6 +38,16 @@ export function getStoredApiKey() {
     return '';
   }
   return localStorage.getItem('custos_api_key') || '';
+}
+
+export function setApiBase(value) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('custos_api_base', normalizeApiBase(value));
+    return;
+  }
+  if (typeof globalThis !== 'undefined') {
+    globalThis.__custos_api_base = normalizeApiBase(value);
+  }
 }
 
 export function isSetupComplete() {
