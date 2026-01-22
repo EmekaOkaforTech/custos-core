@@ -1,4 +1,15 @@
-import { SEED_BANNER_COPY, apiUrl, computeBriefMeta, formatDate, getApiHeaders, isSeedIdentifier, statusLabel } from './ui-state.js';
+import {
+  SEED_BANNER_COPY,
+  apiUrl,
+  computeBriefMeta,
+  formatDate,
+  getApiHeaders,
+  getApiBase,
+  isSeedIdentifier,
+  isSetupComplete,
+  setSetupComplete,
+  statusLabel,
+} from './ui-state.js';
 
 const briefTitle = document.getElementById('brief-title');
 const briefTimer = document.getElementById('brief-timer');
@@ -7,6 +18,10 @@ const briefOffline = document.getElementById('brief-offline');
 const briefAttention = document.getElementById('brief-attention');
 const statusLink = document.getElementById('status-link');
 const briefBanner = document.getElementById('brief-banner');
+const setupBanner = document.getElementById('setup-banner');
+const setupApiBase = document.getElementById('setup-api-base');
+const setupConnect = document.getElementById('setup-connect');
+const setupError = document.getElementById('setup-error');
 const briefCards = document.getElementById('brief-cards');
 const commitmentsSection = document.getElementById('commitments');
 const todaySection = document.getElementById('today');
@@ -81,7 +96,35 @@ function renderTodayMeeting(item) {
   return card;
 }
 
+function showSetupBanner(show) {
+  if (!setupBanner) return;
+  setupBanner.style.display = show ? 'block' : 'none';
+  if (!show) {
+    setupError.textContent = '';
+  }
+}
+
+async function verifySetup(apiBase) {
+  try {
+    const response = await fetch(`${apiBase}/api/health`);
+    if (!response.ok) {
+      throw new Error('Health check failed');
+    }
+    setSetupComplete(true);
+    showSetupBanner(false);
+    loadBriefings();
+  } catch (err) {
+    showSetupBanner(true);
+    setupError.textContent = 'Unable to connect. Please check the URL and try again.';
+  }
+}
+
 async function loadBriefings() {
+  const base = getApiBase();
+  if (!base || !isSetupComplete()) {
+    showSetupBanner(true);
+    return;
+  }
   const nextResponse = await fetch(apiUrl('/api/briefings/next'), { headers: getApiHeaders() });
   const nextData = await nextResponse.json();
   const hasSeedSource = nextData.cards?.some(card => card.source && isSeedIdentifier(card.source.uri));
@@ -152,6 +195,18 @@ async function loadBriefings() {
     briefAttention.classList.add('hidden');
     briefAttention.classList.remove('attention');
   }
+}
+
+if (setupConnect) {
+  setupConnect.addEventListener('click', () => {
+    const value = setupApiBase?.value?.trim() || '';
+    if (!value) {
+      setupError.textContent = 'Enter the backend URL to continue.';
+      showSetupBanner(true);
+      return;
+    }
+    verifySetup(value);
+  });
 }
 
 loadBriefings().catch(() => {

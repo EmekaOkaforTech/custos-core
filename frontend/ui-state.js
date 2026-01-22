@@ -34,6 +34,30 @@ export function getStoredApiKey() {
   return localStorage.getItem('custos_api_key') || '';
 }
 
+export function isSetupComplete() {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('custos_setup_complete') === 'true';
+  }
+  return getSetupCompleteFallback();
+}
+
+export function setSetupComplete(value) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('custos_setup_complete', value ? 'true' : 'false');
+    return;
+  }
+  if (typeof globalThis !== 'undefined') {
+    globalThis.__custos_setup_complete = value ? 'true' : 'false';
+  }
+}
+
+export function getSetupCompleteFallback() {
+  if (typeof globalThis === 'undefined') {
+    return false;
+  }
+  return globalThis.__custos_setup_complete === 'true';
+}
+
 function normalizeApiBase(value) {
   if (!value) return '';
   return value.endsWith('/') ? value.slice(0, -1) : value;

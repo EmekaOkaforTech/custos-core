@@ -32,6 +32,15 @@
         <a class="button-link" id="status-link" href="status.html">Status</a>
       </div>
     </section>
+    <div class="banner" id="setup-banner">
+      <strong>Connect Custos to your local backend.</strong>
+      <span class="muted">We’ll check the health endpoint to confirm.</span>
+      <div class="setup-actions">
+        <input id="setup-api-base" type="text" placeholder="http://127.0.0.1:8000" />
+        <button class="button-link" id="setup-connect">Connect</button>
+      </div>
+      <div class="muted" id="setup-error"></div>
+    </div>
     <div class="banner" id="brief-banner"></div>
 
     <section class="cards" id="brief-cards">
