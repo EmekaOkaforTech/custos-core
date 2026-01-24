@@ -43,10 +43,10 @@ def extract_commitments(payload: str | None) -> list[CommitmentResult]:
             if cleaned:
                 results.append(CommitmentResult(text=cleaned, rule_id=COMMITMENT_RULE_BULLET))
 
-    deduped = []
+    deduped: list[CommitmentResult] = []
     seen = set()
     for item in results:
-        key = item.text.lower()
+        key = " ".join(item.text.lower().split())
         if key in seen:
             continue
         seen.add(key)

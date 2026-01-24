@@ -8,6 +8,8 @@ from app.db import SessionLocal, init_db
 from app.ingestion.rules import extract_commitments, extract_risk_flags
 from app.models.commitment import Commitment
 from app.models.ingestion_job import IngestionJob
+import json
+
 from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
 from app.models.risk_flag import RiskFlag
@@ -34,6 +36,33 @@ def _next_queued_job(session: Session):
         .first()
     )
 
+def _normalize_payload(payload: str | None) -> str:
+    if not payload:
+        return ""
+    return " ".join(payload.strip().split()).lower()
+
+
+def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: int = 300):
+    if not job.payload:
+        return None
+    cutoff = datetime.utcnow() - timedelta(seconds=window_seconds)
+    normalized = _normalize_payload(job.payload)
+    candidates = (
+        session.query(IngestionJob)
+        .filter(IngestionJob.status == "succeeded")
+        .filter(IngestionJob.completed_at != None)  # noqa: E711
+        .filter(IngestionJob.completed_at >= cutoff)
+        .filter(IngestionJob.meeting_id == job.meeting_id)
+        .filter(IngestionJob.capture_type == job.capture_type)
+        .filter(IngestionJob.people_ids == job.people_ids)
+        .order_by(IngestionJob.completed_at.desc())
+        .all()
+    )
+    for candidate in candidates:
+        if _normalize_payload(candidate.payload) == normalized:
+            return candidate
+    return None
+
 
 def _process_job(session: Session, job: IngestionJob):
     job.status = "running"
@@ -41,6 +70,15 @@ def _process_job(session: Session, job: IngestionJob):
     session.commit()
 
     try:
+        duplicate = _find_recent_duplicate(session, job)
+        if duplicate and duplicate.source_id:
+            job.status = "succeeded"
+            job.completed_at = datetime.utcnow()
+            job.source_id = duplicate.source_id
+            job.error = "deduped"
+            session.commit()
+            return
+
         source_id = f"s_{uuid4().hex}"
         source = SourceRecord(
             id=source_id,
@@ -50,6 +88,7 @@ def _process_job(session: Session, job: IngestionJob):
             uri=f"local://sources/{source_id}",
         )
         session.add(source)
+        job.source_id = source_id
 
         commitments = extract_commitments(job.payload)
         for item in commitments:
@@ -59,6 +98,7 @@ def _process_job(session: Session, job: IngestionJob):
                 due_at=None,
                 acknowledged=False,
                 source_id=source_id,
+                rule_id=item.rule_id,
             )
             session.add(commitment)
 
@@ -75,6 +115,25 @@ def _process_job(session: Session, job: IngestionJob):
             session.add(risk_flag)
 
         session.flush()
+
+        if job.people_ids:
+            try:
+                people_ids = json.loads(job.people_ids)
+            except json.JSONDecodeError:
+                people_ids = []
+            for person_id in people_ids:
+                if not person_id:
+                    continue
+                person = session.get(Person, person_id)
+                if not person:
+                    continue
+                link = (
+                    session.query(MeetingParticipant)
+                    .filter_by(meeting_id=job.meeting_id, person_id=person_id)
+                    .first()
+                )
+                if not link:
+                    session.add(MeetingParticipant(meeting_id=job.meeting_id, person_id=person_id))
 
         participant_ids = (
             session.query(MeetingParticipant.person_id)

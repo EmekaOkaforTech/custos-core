@@ -10,6 +10,11 @@ def test_commitment_rules_dedup_and_placeholder():
     texts = [item.text for item in commitments]
     assert texts == ["Plan next steps", "Send summary"]
 
+    payload = "Follow up now\nFollow   up   now\n- Follow up now  "
+    commitments = extract_commitments(payload)
+    texts = [item.text for item in commitments]
+    assert texts == ["Follow up now"]
+
 
 def test_risk_flag_rules_are_neutral():
     payload = "Blocked by vendor\nDue Friday"
