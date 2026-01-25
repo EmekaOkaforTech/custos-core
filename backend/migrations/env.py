@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+import os
 
 from alembic import context
 from sqlalchemy import create_engine, pool
@@ -6,7 +7,7 @@ from sqlalchemy import create_engine, pool
 from app.models import Base
 from sqlalchemy import text
 
-from app.settings import allow_plaintext_db, get_database_key, get_database_url
+from app.settings import allow_plaintext_db, get_database_key, get_database_url, get_env
 
 config = context.config
 fileConfig(config.config_file_name)
@@ -54,6 +55,21 @@ def run_migrations_online():
                 raise RuntimeError("CUSTOS_DATABASE_KEY is required for migrations.")
             connection.execute(text(f"PRAGMA key = '{key}';"))
             connection.execute(text("PRAGMA cipher_version;"))
+        connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);"))
+        table_count = connection.execute(
+            text("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+        ).scalar_one()
+        version_count = connection.execute(text("SELECT COUNT(*) FROM alembic_version;")).scalar_one()
+        if table_count and not version_count:
+            auto_stamp = get_env() == "dev" and os.getenv("CUSTOS_AUTO_STAMP", "0") == "1"
+            if auto_stamp:
+                connection.execute(text("INSERT INTO alembic_version (version_num) VALUES ('0007_relevant_at');"))
+            else:
+                raise RuntimeError(
+                    "Alembic version table is empty while schema exists. "
+                    "Run: python backend/scripts/alembic_repair.py stamp --head 0007_relevant_at "
+                    "or set CUSTOS_AUTO_STAMP=1 in dev."
+                )
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
