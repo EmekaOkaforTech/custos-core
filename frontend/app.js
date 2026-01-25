@@ -30,6 +30,8 @@ const setupConnect = document.getElementById('setup-connect');
 const setupError = document.getElementById('setup-error');
 const briefCards = document.getElementById('brief-cards');
 const commitmentsSection = document.getElementById('commitments');
+const decisionLogSection = document.getElementById('decision-log-section');
+const decisionLogCards = document.getElementById('decision-log');
 const futureRelevantSection = document.getElementById('future-relevant-section');
 const futureRelevantList = document.getElementById('future-relevant');
 const memorySection = document.getElementById('memory-section');
@@ -161,6 +163,49 @@ function renderCommitment(item) {
   card.appendChild(meta);
   card.appendChild(editRow);
   return card;
+}
+
+function renderDecisionLog(items) {
+  if (!decisionLogCards) return;
+  decisionLogCards.innerHTML = '';
+  const now = Date.now();
+  const cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const decisions = (items || [])
+    .filter(item => item.capture_type === 'decision')
+    .filter(item => !item.captured_at || new Date(item.captured_at) >= cutoff)
+    .sort((a, b) => new Date(b.captured_at) - new Date(a.captured_at))
+    .slice(0, 5);
+
+  if (!decisions.length) {
+    decisionLogCards.innerHTML = '<div class="card"><p class="muted">No decision records yet.</p></div>';
+    return;
+  }
+
+  const grouped = new Map();
+  decisions.forEach(item => {
+    const title = item.meeting?.title || 'Context';
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push(item);
+  });
+
+  grouped.forEach((group, title) => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    const heading = document.createElement('h4');
+    heading.textContent = title;
+    card.appendChild(heading);
+    group.forEach(entry => {
+      const payload = entry.payload || entry.excerpt || 'Decision captured.';
+      const excerpt = document.createElement('p');
+      excerpt.textContent = payload.length > 200 ? `${payload.slice(0, 197)}…` : payload;
+      const meta = document.createElement('p');
+      meta.className = 'muted';
+      meta.textContent = entry.captured_at ? formatDate(entry.captured_at) : 'Date unavailable';
+      card.appendChild(excerpt);
+      card.appendChild(meta);
+    });
+    decisionLogCards.appendChild(card);
+  });
 }
 
 function renderRecentCapture(item) {
@@ -667,6 +712,7 @@ async function loadBriefings() {
     const recentData = await recentResponse.json();
     renderRecentCaptures(recentData);
     renderReflections((recentData || []).filter(item => item.capture_type === 'reflection'));
+    renderDecisionLog(recentData);
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.toggle('hidden', recentData.length <= 2);
       recentCapturesToggle.textContent = showAllCaptures ? 'Show less' : 'View all';
@@ -674,6 +720,7 @@ async function loadBriefings() {
   } else {
     renderRecentCaptures([]);
     renderReflections([]);
+    renderDecisionLog([]);
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.add('hidden');
     }
