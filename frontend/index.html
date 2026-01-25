@@ -65,8 +65,12 @@
     </section>
 
     <section class="section secondary" id="memory-section">
-      <h3>Memory recall</h3>
+      <div class="section-header">
+        <h3>Memory recall</h3>
+        <button class="button-link" id="memory-toggle" type="button">Show</button>
+      </div>
       <p class="muted">Based on your most recent reflection.</p>
+      <p class="muted hidden" id="memory-collapsed-note">Hidden while a next context is active.</p>
       <div class="cards" id="memory-cards"></div>
     </section>
 
@@ -185,9 +189,12 @@
             <option value="follow-up">Follow-up</option>
             <option value="reflection">Reflection</option>
           </select>
+          <p class="muted">Commitment intent</p>
           <label for="capture-commitment-relevant">Relevant by (optional)</label>
           <input id="capture-commitment-relevant" type="date" name="commitment_relevant_by" />
-          <label for="capture-relevant">Relevant when (optional)</label>
+          <p class="muted">I want this commitment settled by this date.</p>
+          <p class="muted">Context visibility</p>
+          <label for="capture-relevant">Surface on (optional)</label>
           <select id="capture-relevant" name="relevant_when">
             <option value="">Not set</option>
             <option value="later-today">Later today</option>
@@ -196,6 +203,7 @@
             <option value="date">Specific date…</option>
           </select>
           <input id="capture-relevant-date" class="hidden" type="date" name="relevant_date" />
+          <p class="muted">Show this context around that date when there is no next context.</p>
         </div>
 
         <div class="checkbox-row" id="capture-index-group">
