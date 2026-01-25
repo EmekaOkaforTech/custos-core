@@ -14,11 +14,14 @@
   <header class="site-header">
     <div class="brand">
       <h1>Custos</h1>
+      <span class="demo-badge hidden" id="demo-badge">Demo Mode</span>
     </div>
     <nav class="global-nav" aria-label="Primary">
       <a class="nav-link" href="index.html">Briefing</a>
       <a class="nav-link" href="people.html">People</a>
       <a class="nav-link active" href="status.html" aria-current="page">Status</a>
+      <button class="nav-link nav-action" id="capture-quick" type="button">Quick capture</button>
+      <button class="nav-link nav-action" id="capture-open" type="button">Capture</button>
     </nav>
   </header>
   <main class="container">
@@ -58,7 +61,159 @@
       </form>
       <p class="muted" id="api-key-status">No API key stored in browser.</p>
     </section>
+
+    <section class="card hidden" id="demo-reset-card">
+      <h3>Demo Mode</h3>
+      <p class="muted">Reset demo data back to the deterministic seed dataset.</p>
+      <button class="button-link" id="demo-reset">Reset demo data</button>
+      <p class="muted" id="demo-reset-status"></p>
+    </section>
+
+    <section class="card" id="calendar-card">
+      <h3>Calendar Connection</h3>
+      <p class="muted" id="calendar-status">Calendar not connected yet.</p>
+      <button class="button-link" id="calendar-connect">Connect calendar (read-only)</button>
+      <button class="button-link" id="calendar-import">Run calendar import</button>
+      <p class="muted" id="calendar-import-status"></p>
+    </section>
+
+    <section class="section" id="closure-section">
+      <div class="section-header">
+        <h3>Commitment closure</h3>
+        <div class="tag-input">
+          <button class="button-link" id="closure-group-meeting" type="button">By context</button>
+          <button class="button-link" id="closure-group-person" type="button">By person</button>
+        </div>
+      </div>
+      <div class="cards" id="closure-cards"></div>
+    </section>
+
+    <section class="section" id="threads-section">
+      <h3>Unresolved threads</h3>
+      <div class="cards" id="threads-cards"></div>
+    </section>
+
+    <section class="section" id="context-gaps-section">
+      <h3>Context gaps</h3>
+      <div class="cards" id="context-gaps-cards"></div>
+    </section>
+
+    <section class="section" id="relationship-signals-section">
+      <h3>Relationship presence</h3>
+      <div class="cards" id="relationship-signals-cards"></div>
+    </section>
   </main>
+
+  <div class="modal" id="capture-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-capture-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="capture-title">
+      <div class="modal-header">
+        <h2 id="capture-title">Capture notes</h2>
+        <button class="icon-button" id="capture-close" type="button" aria-label="Close capture panel">×</button>
+      </div>
+      <form class="modal-body" id="capture-form">
+        <button type="button" class="button-link" id="capture-advanced-toggle">Show details</button>
+        <div id="capture-advanced">
+          <label for="capture-meeting">Context</label>
+          <select id="capture-meeting" name="meeting" aria-describedby="capture-meeting-detail">
+            <option value="next">Next context</option>
+            <option value="today">Today</option>
+            <option value="create">Create new context</option>
+          </select>
+          <p class="muted" id="capture-meeting-detail">Select a context to attach notes.</p>
+          <label for="capture-meeting-title" id="capture-meeting-title-label" class="hidden">New context title</label>
+          <div class="tag-input hidden" id="capture-meeting-create">
+            <input id="capture-meeting-title" name="meeting_title" placeholder="e.g. Lucia follow-up" />
+          </div>
+          <p class="muted hidden" id="capture-meeting-help">We will create a context entry and attach your notes.</p>
+
+          <label for="capture-type">Capture type</label>
+          <select id="capture-type" name="capture_type">
+            <option value="notes">Notes</option>
+            <option value="transcript">Transcript</option>
+            <option value="decision">Decision</option>
+            <option value="follow-up">Follow-up</option>
+          </select>
+          <label for="capture-relevant">Relevant when (optional)</label>
+          <select id="capture-relevant" name="relevant_when">
+            <option value="">Not set</option>
+            <option value="later-today">Later today</option>
+            <option value="this-week">This week</option>
+            <option value="next-week">Next week</option>
+            <option value="date">Specific date…</option>
+          </select>
+          <input id="capture-relevant-date" class="hidden" type="date" name="relevant_date" />
+        </div>
+
+        <label for="capture-notes">Notes</label>
+        <textarea id="capture-notes" name="payload" rows="6" placeholder="Write notes here"></textarea>
+
+        <div id="capture-people-group">
+          <label for="capture-people-input">People (optional)</label>
+          <div class="tag-input">
+            <input id="capture-people-input" list="people-options" placeholder="Start typing a name" />
+            <select id="capture-people-type">
+              <option value="person">Person</option>
+              <option value="org">Organization</option>
+            </select>
+            <button type="button" class="button-link" id="capture-add-person">Add person</button>
+          </div>
+          <datalist id="people-options"></datalist>
+          <p class="muted" id="capture-people-help">Choose from the list or add a new person.</p>
+          <div class="tag-list" id="capture-people-tags"></div>
+        </div>
+
+        <p class="muted" id="capture-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button type="submit" id="capture-submit">Save</button>
+          <button type="button" class="button-link" id="capture-reset-defaults">Reset defaults</button>
+          <button type="button" class="button-link" data-capture-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="calendar-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-calendar-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="calendar-title">
+      <div class="modal-header">
+        <h2 id="calendar-title">Connect calendar (read-only)</h2>
+        <button class="icon-button" id="calendar-close" type="button" aria-label="Close calendar wizard">×</button>
+      </div>
+      <form class="modal-body" id="calendar-form">
+        <div class="wizard-step" data-step="1">
+          <h3>Before you connect</h3>
+          <p class="muted">Custos will only read upcoming meetings to build briefings. Nothing is sent out.</p>
+          <p class="muted" id="calendar-current-status">Current status: unavailable</p>
+          <button type="button" class="button-link" data-calendar-next>Continue</button>
+        </div>
+
+        <div class="wizard-step hidden" data-step="2">
+          <h3>Read-only scopes</h3>
+          <ul class="muted">
+            <li>Read event titles and times</li>
+            <li>Read attendee names</li>
+            <li>No write access</li>
+          </ul>
+          <label class="checkbox-row">
+            <input type="checkbox" id="calendar-consent" />
+            I consent to read-only calendar access.
+          </label>
+          <p class="muted" id="calendar-consent-error"></p>
+          <button type="button" class="button-link" data-calendar-back>Back</button>
+          <button type="button" class="button-link" data-calendar-next>Continue</button>
+        </div>
+
+        <div class="wizard-step hidden" data-step="3">
+          <h3>All set</h3>
+          <p class="muted">You can enable calendar import after confirming in the next step.</p>
+          <p class="muted" id="calendar-complete-status">Consent saved locally.</p>
+          <button type="button" class="button-link" data-calendar-back>Back</button>
+          <button type="button" class="button-link" data-calendar-finish>Finish</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script type="module" src="status.js"></script>

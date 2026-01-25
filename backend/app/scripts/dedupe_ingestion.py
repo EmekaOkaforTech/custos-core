@@ -45,6 +45,7 @@ def dedupe_ingestion() -> dict:
                 job.capture_type,
                 _normalize_payload(job.payload),
                 (job.people_ids or "").strip(),
+                job.relevant_at.isoformat() if job.relevant_at else "",
             )
             groups[key].append(job)
 

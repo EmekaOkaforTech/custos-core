@@ -8,6 +8,8 @@ from app.db import get_db
 from app.models.commitment import Commitment
 from app.models.meeting import Meeting
 from app.models.source_record import SourceRecord
+from app.models.meeting_participant import MeetingParticipant
+from app.models.person import Person
 
 router = APIRouter(prefix="/api/briefings", tags=["briefings"])
 
@@ -92,10 +94,34 @@ def get_next_briefing(
     )
 
     if not meeting:
+        future_relevant = (
+            db.query(SourceRecord, Meeting)
+            .join(Meeting, SourceRecord.meeting_id == Meeting.id)
+            .filter(SourceRecord.relevant_at != None)  # noqa: E711
+            .filter(SourceRecord.relevant_at >= now)
+            .order_by(SourceRecord.relevant_at.asc())
+            .all()
+        )
+        future_items = []
+        for source, meeting_item in future_relevant:
+            future_items.append(
+                {
+                    "source_id": source.id,
+                    "capture_type": source.capture_type,
+                    "captured_at": source.captured_at,
+                    "relevant_at": source.relevant_at,
+                    "meeting": {
+                        "id": meeting_item.id,
+                        "title": meeting_item.title,
+                        "starts_at": meeting_item.starts_at,
+                    },
+                }
+            )
         return {
             "meeting": None,
             "cards": [],
             "commitments": [],
+            "future_relevant": future_items,
             "updated_at": now.isoformat(),
             "cached": cached,
             "offline": offline,
@@ -119,9 +145,11 @@ def get_next_briefing(
             "capture_type": source.capture_type,
             "uri": source.uri,
         }
+        rule_meta = {"id": "source_capture", "type": source.capture_type}
     else:
         summary = "No recent context available."
         source_meta = None
+        rule_meta = {"id": "no_source", "type": "absence"}
 
     commitments = (
         db.query(Commitment)
@@ -130,6 +158,15 @@ def get_next_briefing(
         .order_by(Commitment.due_at.asc().nulls_last(), Commitment.created_at.asc())
         .all()
     )
+
+    people = (
+        db.query(Person)
+        .join(MeetingParticipant, MeetingParticipant.person_id == Person.id)
+        .filter(MeetingParticipant.meeting_id == meeting.id)
+        .order_by(Person.name.asc())
+        .all()
+    )
+    people_meta = [{"id": person.id, "name": person.name, "type": person.type} for person in people]
 
     return {
         "meeting": {
@@ -143,6 +180,16 @@ def get_next_briefing(
                 "status": status,
                 "last_source_at": last_source_at,
                 "source": source_meta,
+                "reason": {
+                    "meeting": {
+                        "id": meeting.id,
+                        "title": meeting.title,
+                        "starts_at": meeting.starts_at,
+                    },
+                    "source": source_meta,
+                    "people": people_meta,
+                    "rule": rule_meta,
+                },
             }
         ],
         "commitments": [
@@ -151,12 +198,14 @@ def get_next_briefing(
                 "text": item.text,
                 "acknowledged": item.acknowledged,
                 "source_id": item.source_id,
+                "rule_id": item.rule_id,
                 "due_at": item.due_at,
                 "created_at": item.created_at,
                 "updated_at": item.updated_at,
             }
             for item in commitments
         ],
+        "future_relevant": [],
         "updated_at": now.isoformat(),
         "cached": cached,
         "offline": offline,

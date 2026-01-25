@@ -27,6 +27,8 @@ export function initCapture({ onSuccess } = {}) {
   const advancedSection = document.getElementById('capture-advanced');
   const peopleGroup = document.getElementById('capture-people-group');
   const captureType = document.getElementById('capture-type');
+  const relevantWhen = document.getElementById('capture-relevant');
+  const relevantDate = document.getElementById('capture-relevant-date');
   const notes = document.getElementById('capture-notes');
   const status = document.getElementById('capture-status');
   const submitButton = document.getElementById('capture-submit');
@@ -93,6 +95,44 @@ export function initCapture({ onSuccess } = {}) {
     if (advancedToggle) {
       advancedToggle.textContent = visible ? 'Hide details' : 'Show details';
     }
+  }
+
+  function setRelevantDateVisible(visible) {
+    if (relevantDate) {
+      relevantDate.classList.toggle('hidden', !visible);
+    }
+  }
+
+  function resolveRelevantAt() {
+    if (!relevantWhen) return null;
+    const value = relevantWhen.value;
+    if (!value) return null;
+    const now = new Date();
+    if (value === 'date') {
+      if (!relevantDate || !relevantDate.value) return null;
+      const dateValue = new Date(`${relevantDate.value}T09:00:00`);
+      return dateValue.toISOString();
+    }
+    const base = new Date(now.getTime());
+    if (value === 'later-today') {
+      base.setHours(23, 59, 0, 0);
+      return base.toISOString();
+    }
+    if (value === 'this-week') {
+      const day = base.getDay();
+      const diff = 7 - day;
+      base.setDate(base.getDate() + diff);
+      base.setHours(23, 59, 0, 0);
+      return base.toISOString();
+    }
+    if (value === 'next-week') {
+      const day = base.getDay();
+      const diff = 7 - day + 7;
+      base.setDate(base.getDate() + diff);
+      base.setHours(23, 59, 0, 0);
+      return base.toISOString();
+    }
+    return null;
   }
 
   function applyQuickDefaults() {
@@ -417,11 +457,13 @@ export function initCapture({ onSuccess } = {}) {
     }
     const captureValue = captureType?.value || 'notes';
     const peopleIds = Array.from(selectedPeople.keys());
+    const relevantAt = resolveRelevantAt();
     const body = {
       meeting_id: meeting.id,
       capture_type: captureValue,
       payload,
       people_ids: peopleIds.length ? peopleIds : undefined,
+      relevant_at: relevantAt || undefined,
     };
 
     try {
@@ -447,6 +489,13 @@ export function initCapture({ onSuccess } = {}) {
         people: Array.from(selectedPeople.entries()).map(([id, name]) => ({ id, name })),
       });
       clearPeople();
+      if (relevantWhen) {
+        relevantWhen.value = '';
+      }
+      if (relevantDate) {
+        relevantDate.value = '';
+        setRelevantDateVisible(false);
+      }
       if (typeof onSuccess === 'function') {
         onSuccess();
       }
@@ -517,6 +566,22 @@ export function initCapture({ onSuccess } = {}) {
       clearPeople();
       if (captureType) {
         captureType.value = 'notes';
+      }
+      if (relevantWhen) {
+        relevantWhen.value = '';
+      }
+      if (relevantDate) {
+        relevantDate.value = '';
+        setRelevantDateVisible(false);
+      }
+    });
+  }
+  if (relevantWhen) {
+    relevantWhen.addEventListener('change', () => {
+      const showDate = relevantWhen.value === 'date';
+      setRelevantDateVisible(showDate);
+      if (!showDate && relevantDate) {
+        relevantDate.value = '';
       }
     });
   }

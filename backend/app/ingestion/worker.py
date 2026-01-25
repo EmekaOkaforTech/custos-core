@@ -55,6 +55,7 @@ def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: 
         .filter(IngestionJob.meeting_id == job.meeting_id)
         .filter(IngestionJob.capture_type == job.capture_type)
         .filter(IngestionJob.people_ids == job.people_ids)
+        .filter(IngestionJob.relevant_at == job.relevant_at)
         .order_by(IngestionJob.completed_at.desc())
         .all()
     )
@@ -86,6 +87,7 @@ def _process_job(session: Session, job: IngestionJob):
             captured_at=datetime.utcnow(),
             capture_type=job.capture_type,
             uri=f"local://sources/{source_id}",
+            relevant_at=job.relevant_at,
         )
         session.add(source)
         job.source_id = source_id

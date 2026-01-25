@@ -13,4 +13,5 @@ class SourceRecord(Base):
     captured_at = Column(DateTime, nullable=False)
     capture_type = Column(String, nullable=False)
     uri = Column(String, nullable=False)
+    relevant_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

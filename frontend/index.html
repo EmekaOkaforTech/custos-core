@@ -14,21 +14,25 @@
   <header class="site-header">
     <div class="brand">
       <h1>Custos</h1>
+      <span class="demo-badge hidden" id="demo-badge">Demo Mode</span>
     </div>
     <nav class="global-nav" aria-label="Primary">
       <a class="nav-link active" href="index.html" aria-current="page">Briefing</a>
       <a class="nav-link" href="people.html">People</a>
       <a class="nav-link" href="status.html">Status</a>
+      <button class="nav-link nav-action" id="capture-quick" type="button">Quick capture</button>
+      <button class="nav-link nav-action" id="capture-open" type="button">Capture</button>
     </nav>
   </header>
   <main class="container">
     <section class="brief-header">
-      <div class="brief-title" id="brief-title">Pre‑Meeting Brief</div>
+      <div class="brief-title" id="brief-title">Context brief</div>
       <div class="brief-meta">
-        <div class="status" id="brief-timer">Next meeting soon</div>
+        <div class="status" id="brief-timer">Next context soon</div>
         <div class="status" id="brief-status">Updated just now</div>
         <div class="status hidden" id="brief-offline">Using cached briefing (offline)</div>
         <div class="status hidden" id="brief-attention">Attention needed</div>
+        <button class="button-link" id="meeting-rename-open" type="button">Rename context</button>
         <a class="button-link" id="status-link" href="status.html">Status</a>
       </div>
     </section>
@@ -50,16 +54,163 @@
       </div>
     </section>
 
-    <section class="section" id="commitments-section">
+    <section class="section secondary" id="commitments-section">
       <h3>Commitments</h3>
       <div class="cards" id="commitments"></div>
     </section>
 
-    <section class="section" id="today-section">
-      <h3>Today</h3>
+    <section class="section secondary hidden" id="future-relevant-section">
+      <h3>Future-relevant context</h3>
+      <div class="cards" id="future-relevant"></div>
+    </section>
+
+    <section class="section secondary" id="recent-captures-section">
+      <div class="section-header">
+        <h3>Recent context</h3>
+        <button class="button-link" id="recent-captures-toggle" type="button">View all</button>
+      </div>
+      <div class="cards" id="recent-captures"></div>
+    </section>
+
+    <section class="section secondary" id="today-section">
+      <h3>Today’s context</h3>
       <div class="cards" id="today"></div>
     </section>
+
+    <section class="section secondary" id="reflection-section">
+      <h3>End of day</h3>
+      <div class="card">
+        <p class="muted" id="reflection-summary">Reflecting on today…</p>
+        <div class="empty-actions">
+          <button class="button-link" id="reflection-closeout">Close out day</button>
+        </div>
+        <p class="muted hidden" id="reflection-closed">Day closed. See you tomorrow.</p>
+      </div>
+    </section>
   </main>
+
+  <div class="modal" id="meeting-rename-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-meeting-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="meeting-rename-title">
+      <div class="modal-header">
+        <h2 id="meeting-rename-title">Rename meeting</h2>
+        <button class="icon-button" id="meeting-rename-close" type="button" aria-label="Close rename panel">×</button>
+      </div>
+      <form class="modal-body" id="meeting-rename-form">
+        <label for="meeting-rename-input">Context name</label>
+        <input id="meeting-rename-input" name="meeting_title" placeholder="Enter a new context name" />
+        <p class="muted" id="meeting-rename-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button type="submit" id="meeting-rename-submit">Save</button>
+          <button type="button" class="button-link" data-meeting-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="capture-move-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-move-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="capture-move-title">
+      <div class="modal-header">
+        <h2 id="capture-move-title">Move capture</h2>
+        <button class="icon-button" id="capture-move-close" type="button" aria-label="Close move panel">×</button>
+      </div>
+      <form class="modal-body" id="capture-move-form">
+        <label for="capture-move-select">Move to context</label>
+        <select id="capture-move-select" name="meeting"></select>
+        <p class="muted" id="capture-move-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button type="submit" id="capture-move-submit">Move</button>
+          <button type="button" class="button-link" data-move-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" id="why-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-why-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="why-title">
+      <div class="modal-header">
+        <h2 id="why-title">Why am I seeing this?</h2>
+        <button class="icon-button" id="why-close" type="button" aria-label="Close explanation">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="muted" id="why-meeting"></p>
+        <p class="muted" id="why-source"></p>
+        <p class="muted" id="why-people"></p>
+        <p class="muted" id="why-rule"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="capture-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-capture-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="capture-title">
+      <div class="modal-header">
+        <h2 id="capture-title">Capture notes</h2>
+        <button class="icon-button" id="capture-close" type="button" aria-label="Close capture panel">×</button>
+      </div>
+      <form class="modal-body" id="capture-form">
+        <button type="button" class="button-link" id="capture-advanced-toggle">Show details</button>
+        <div id="capture-advanced">
+          <label for="capture-meeting">Context</label>
+          <select id="capture-meeting" name="meeting" aria-describedby="capture-meeting-detail">
+            <option value="next">Next context</option>
+            <option value="today">Today</option>
+            <option value="create">Create new context</option>
+          </select>
+          <p class="muted" id="capture-meeting-detail">Select a context to attach notes.</p>
+          <label for="capture-meeting-title" id="capture-meeting-title-label" class="hidden">New context title</label>
+          <div class="tag-input hidden" id="capture-meeting-create">
+            <input id="capture-meeting-title" name="meeting_title" placeholder="e.g. Lucia follow-up" />
+          </div>
+          <p class="muted hidden" id="capture-meeting-help">We will create a context entry and attach your notes.</p>
+
+          <label for="capture-type">Capture type</label>
+          <select id="capture-type" name="capture_type">
+            <option value="notes">Notes</option>
+            <option value="transcript">Transcript</option>
+            <option value="decision">Decision</option>
+            <option value="follow-up">Follow-up</option>
+          </select>
+          <label for="capture-relevant">Relevant when (optional)</label>
+          <select id="capture-relevant" name="relevant_when">
+            <option value="">Not set</option>
+            <option value="later-today">Later today</option>
+            <option value="this-week">This week</option>
+            <option value="next-week">Next week</option>
+            <option value="date">Specific date…</option>
+          </select>
+          <input id="capture-relevant-date" class="hidden" type="date" name="relevant_date" />
+        </div>
+
+        <label for="capture-notes">Notes</label>
+        <textarea id="capture-notes" name="payload" rows="6" placeholder="Write notes here"></textarea>
+
+        <div id="capture-people-group">
+          <label for="capture-people-input">People (optional)</label>
+          <div class="tag-input">
+            <input id="capture-people-input" list="people-options" placeholder="Start typing a name" />
+            <select id="capture-people-type">
+              <option value="person">Person</option>
+              <option value="org">Organization</option>
+            </select>
+            <button type="button" class="button-link" id="capture-add-person">Add person</button>
+          </div>
+          <datalist id="people-options"></datalist>
+          <p class="muted" id="capture-people-help">Choose from the list or add a new person.</p>
+          <div class="tag-list" id="capture-people-tags"></div>
+        </div>
+
+        <p class="muted" id="capture-status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button type="submit" id="capture-submit">Save</button>
+          <button type="button" class="button-link" id="capture-reset-defaults">Reset defaults</button>
+          <button type="button" class="button-link" data-capture-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>

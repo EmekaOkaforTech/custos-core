@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 from datetime import timedelta
 
@@ -21,6 +21,7 @@ class IngestionRequest(BaseModel):
     capture_type: str
     payload: str
     people_ids: list[str] | None = None
+    relevant_at: datetime | None = None
 
 
 class IngestionResponse(BaseModel):
@@ -65,6 +66,14 @@ def _normalize_payload(payload: str | None) -> str:
     return " ".join(payload.strip().split()).lower()
 
 
+def _normalize_relevant_at(value: datetime | None) -> datetime | None:
+    if not value:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
 @router.post("", response_model=IngestionResponse, status_code=status.HTTP_202_ACCEPTED)
 def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -> IngestionResponse:
     if request.capture_type not in {"notes", "transcript", "decision", "follow-up"}:
@@ -82,6 +91,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
             if existing_ids:
                 people_json = json.dumps(existing_ids)
     normalized_payload = _normalize_payload(request.payload)
+    relevant_at = _normalize_relevant_at(request.relevant_at)
     if normalized_payload:
         cutoff = datetime.utcnow() - timedelta(seconds=DEDUP_WINDOW_SECONDS)
         candidates = (
@@ -90,6 +100,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
             .filter(IngestionJob.capture_type == request.capture_type)
             .filter(IngestionJob.created_at >= cutoff)
             .filter(IngestionJob.people_ids == people_json)
+            .filter(IngestionJob.relevant_at == relevant_at)
             .order_by(IngestionJob.created_at.desc())
             .all()
         )
@@ -103,6 +114,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         payload=request.payload,
         capture_type=request.capture_type,
         people_ids=people_json,
+        relevant_at=relevant_at,
         status="queued",
     )
     db.add(job)
