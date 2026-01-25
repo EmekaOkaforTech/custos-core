@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 
@@ -12,6 +13,14 @@ KEY = os.getenv("CUSTOS_DATABASE_KEY", "")
 if not KEY:
     print("CUSTOS_DATABASE_KEY is not set.")
     sys.exit(2)
+
+parser = argparse.ArgumentParser(description="Deduplicate commitments by meeting + text.")
+parser.add_argument(
+    "--remove-orphans",
+    action="store_true",
+    help="Remove source_record rows with zero commitments (off by default).",
+)
+args = parser.parse_args()
 
 conn = sqlcipher3.connect(DB_PATH)
 cur = conn.cursor()
@@ -42,19 +51,19 @@ if remove_ids:
 else:
     print("No duplicate commitments found")
 
-# Remove sources that no longer have commitments
-cur.execute(
-    """
-    SELECT s.id
-    FROM source_record s
-    LEFT JOIN commitment c ON c.source_id = s.id
-    WHERE c.id IS NULL
-    """
-)
-orphan_ids = [row[0] for row in cur.fetchall()]
-if orphan_ids:
-    cur.executemany("DELETE FROM source_record WHERE id = ?", [(sid,) for sid in orphan_ids])
-    conn.commit()
-    print(f"Removed {len(orphan_ids)} orphan sources")
+if args.remove_orphans:
+    cur.execute(
+        """
+        SELECT s.id
+        FROM source_record s
+        LEFT JOIN commitment c ON c.source_id = s.id
+        WHERE c.id IS NULL
+        """
+    )
+    orphan_ids = [row[0] for row in cur.fetchall()]
+    if orphan_ids:
+        cur.executemany("DELETE FROM source_record WHERE id = ?", [(sid,) for sid in orphan_ids])
+        conn.commit()
+        print(f"Removed {len(orphan_ids)} orphan sources")
 
 conn.close()
