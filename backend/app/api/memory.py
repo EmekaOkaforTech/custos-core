@@ -31,14 +31,18 @@ def surface_memory(db: Session = Depends(get_db), limit: int = 5) -> dict:
             "why": "Memory store unavailable. Ensure Qdrant is running locally or configured.",
             "error": str(exc),
         }
+    allowed_types = {"reflection", "notes"}
     items = []
     for payload in results:
+        capture_type = payload.get("capture_type")
+        if capture_type and capture_type not in allowed_types:
+            continue
         items.append(
             {
                 "source_id": payload.get("source_id"),
                 "meeting_title": payload.get("meeting_title"),
                 "captured_at": payload.get("captured_at"),
-                "capture_type": payload.get("capture_type"),
+                "capture_type": capture_type,
                 "excerpt": payload.get("excerpt"),
             }
         )
@@ -51,4 +55,5 @@ def surface_memory(db: Session = Depends(get_db), limit: int = 5) -> dict:
         },
         "items": items,
         "why": "Surfaced because it is semantically related to your most recent reflection.",
+        "filters": {"capture_types": sorted(allowed_types)},
     }
