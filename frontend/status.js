@@ -52,6 +52,8 @@ const closureGroupMeeting = document.getElementById('closure-group-meeting');
 const closureGroupPerson = document.getElementById('closure-group-person');
 const threadsSection = document.getElementById('threads-section');
 const threadsCards = document.getElementById('threads-cards');
+const decisionSection = document.getElementById('decision-section');
+const decisionCards = document.getElementById('decision-cards');
 const contextGapsSection = document.getElementById('context-gaps-section');
 const contextGapsCards = document.getElementById('context-gaps-cards');
 const relationshipSignalsSection = document.getElementById('relationship-signals-section');
@@ -367,6 +369,47 @@ async function loadThreads() {
   renderThreads(data.threads || []);
 }
 
+function renderDecisions(items) {
+  if (!decisionCards) return;
+  decisionCards.innerHTML = '';
+  if (!Array.isArray(items) || !items.length) {
+    decisionCards.innerHTML = '<div class="card"><p class="muted">No decisions captured yet.</p></div>';
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const title = document.createElement('h4');
+    title.textContent = item.meeting?.title || 'Context';
+    const meta = document.createElement('p');
+    meta.className = 'muted';
+    meta.textContent = item.captured_at ? `Captured ${formatDate(item.captured_at)}` : 'Captured time unknown';
+    const excerpt = document.createElement('p');
+    const text = item.payload?.trim() || 'No capture excerpt available.';
+    excerpt.textContent = text.length > 160 ? `${text.slice(0, 157)}…` : text;
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(excerpt);
+    decisionCards.appendChild(card);
+  });
+}
+
+async function loadDecisionSurfaces() {
+  if (!getApiBase() || !isSetupComplete()) {
+    return;
+  }
+  const response = await fetch(apiUrl('/api/ingestion/recent?limit=20'), { headers: getApiHeaders() });
+  if (!response.ok) {
+    if (decisionCards) {
+      decisionCards.innerHTML = '<div class="card"><p class="muted">Unable to load decision surfaces.</p></div>';
+    }
+    return;
+  }
+  const data = await response.json();
+  const decisions = Array.isArray(data) ? data.filter(item => item.capture_type === 'decision') : [];
+  renderDecisions(decisions);
+}
+
 function renderGaps(data) {
   if (!contextGapsCards) return;
   contextGapsCards.innerHTML = '';
@@ -594,6 +637,7 @@ initCapture({ onSuccess: loadStatus });
 refreshDemoMode();
 loadClosure();
 loadThreads();
+loadDecisionSurfaces();
 loadContextGaps();
 loadRelationshipSignals();
 
