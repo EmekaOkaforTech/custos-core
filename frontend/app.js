@@ -44,6 +44,7 @@ const whyRule = document.getElementById('why-rule');
 const reflectionSummary = document.getElementById('reflection-summary');
 const reflectionCloseout = document.getElementById('reflection-closeout');
 const reflectionClosed = document.getElementById('reflection-closed');
+const reflectionCards = document.getElementById('reflection-cards');
 const meetingRenameOpen = document.getElementById('meeting-rename-open');
 const meetingRenameModal = document.getElementById('meeting-rename-modal');
 const meetingRenameClose = document.getElementById('meeting-rename-close');
@@ -197,6 +198,31 @@ function renderRecentCaptures(items) {
   } else {
     recentCapturesSection.innerHTML = '<div class="card"><p class="muted">No recent captures yet.</p></div>';
   }
+}
+
+function renderReflections(items) {
+  if (!reflectionCards) return;
+  reflectionCards.innerHTML = '';
+  if (!Array.isArray(items) || !items.length) {
+    reflectionCards.innerHTML = '<div class="card"><p class="muted">No reflections captured yet.</p></div>';
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const title = document.createElement('h4');
+    title.textContent = item.meeting?.title || 'Reflection';
+    const when = document.createElement('p');
+    when.className = 'muted';
+    when.textContent = item.captured_at ? `Captured ${formatDate(item.captured_at)}` : 'Captured recently';
+    const text = document.createElement('p');
+    const payload = item.payload?.trim() || 'No reflection text available.';
+    text.textContent = payload.length > 200 ? `${payload.slice(0, 197)}…` : payload;
+    card.appendChild(title);
+    card.appendChild(when);
+    card.appendChild(text);
+    reflectionCards.appendChild(card);
+  });
 }
 
 function renderFutureRelevant(items) {
@@ -597,12 +623,14 @@ async function loadBriefings() {
   if (recentResponse.ok) {
     const recentData = await recentResponse.json();
     renderRecentCaptures(recentData);
+    renderReflections((recentData || []).filter(item => item.capture_type === 'reflection'));
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.toggle('hidden', recentData.length <= 2);
       recentCapturesToggle.textContent = showAllCaptures ? 'Show less' : 'View all';
     }
   } else {
     renderRecentCaptures([]);
+    renderReflections([]);
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.add('hidden');
     }
@@ -646,6 +674,7 @@ loadBriefings().catch(() => {
   setBanner('error', 'Unable to load briefings. Check local connectivity.');
   renderReflection({ meetings: [], commitments: [] });
   renderRecentCaptures([]);
+  renderReflections([]);
   if (recentCapturesToggle) {
     recentCapturesToggle.classList.add('hidden');
   }

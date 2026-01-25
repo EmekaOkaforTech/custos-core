@@ -78,6 +78,11 @@
     </section>
 
     <section class="section secondary" id="reflection-section">
+      <div class="section-header">
+        <h3>Narrative reflection</h3>
+        <button class="button-link" id="capture-reflection" type="button">Add reflection</button>
+      </div>
+      <div class="cards" id="reflection-cards"></div>
       <h3>End of day</h3>
       <div class="card">
         <p class="muted" id="reflection-summary">Reflecting on today…</p>
@@ -172,6 +177,7 @@
             <option value="transcript">Transcript</option>
             <option value="decision">Decision</option>
             <option value="follow-up">Follow-up</option>
+            <option value="reflection">Reflection</option>
           </select>
           <label for="capture-commitment-relevant">Relevant by (optional)</label>
           <input id="capture-commitment-relevant" type="date" name="commitment_relevant_by" />

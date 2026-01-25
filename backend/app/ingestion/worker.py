@@ -124,7 +124,7 @@ def _process_job(session: Session, job: IngestionJob):
         job.source_id = source_id
         job.dedupe_key = dedupe_key
 
-        commitments = extract_commitments(job.payload)
+        commitments = [] if job.capture_type == "reflection" else extract_commitments(job.payload)
         for item in commitments:
             existing_commitment = (
                 session.query(Commitment)

@@ -15,6 +15,7 @@ export function initCapture({ onSuccess } = {}) {
   const modal = document.getElementById('capture-modal');
   const openButton = document.getElementById('capture-open');
   const quickButton = document.getElementById('capture-quick');
+  const reflectionButton = document.getElementById('capture-reflection');
   if (!modal || !openButton) return;
 
   const meetingSelect = document.getElementById('capture-meeting');
@@ -152,6 +153,23 @@ export function initCapture({ onSuccess } = {}) {
           meetingTitleInput.value = `Quick capture ${today}`;
         }
       }
+    }
+    updateMeetingDetail();
+    if (notes) {
+      notes.focus();
+    }
+  }
+
+  function applyReflectionDefaults() {
+    if (captureType) {
+      captureType.value = 'reflection';
+    }
+    if (meetingSelect) {
+      meetingSelect.value = 'create';
+    }
+    if (meetingTitleInput) {
+      const today = new Date().toISOString().slice(0, 10);
+      meetingTitleInput.value = `Reflection ${today}`;
     }
     updateMeetingDetail();
     if (notes) {
@@ -550,9 +568,26 @@ export function initCapture({ onSuccess } = {}) {
     setAdvancedVisible(false);
   }
 
+  function openReflectionCapture() {
+    quickMode = false;
+    setStatus('');
+    setModalOpen(true);
+    if (!guardSetupReady()) {
+      return;
+    }
+    loadPeople();
+    loadMeetings().then(() => {
+      applyReflectionDefaults();
+    });
+    setAdvancedVisible(true);
+  }
+
   openButton.addEventListener('click', openModal);
   if (quickButton) {
     quickButton.addEventListener('click', openQuickCapture);
+  }
+  if (reflectionButton) {
+    reflectionButton.addEventListener('click', openReflectionCapture);
   }
   closeButtons.forEach(button => button.addEventListener('click', () => setModalOpen(false)));
   if (closeButton) {

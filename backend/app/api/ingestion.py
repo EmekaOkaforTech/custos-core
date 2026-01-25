@@ -90,7 +90,7 @@ def _normalize_relevant_at(value: datetime | None) -> datetime | None:
 
 @router.post("", response_model=IngestionResponse, status_code=status.HTTP_202_ACCEPTED)
 def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -> IngestionResponse:
-    if request.capture_type not in {"notes", "transcript", "decision", "follow-up"}:
+    if request.capture_type not in {"notes", "transcript", "decision", "follow-up", "reflection"}:
         raise HTTPException(status_code=400, detail="Invalid capture_type")
     meeting = db.get(Meeting, request.meeting_id)
     if not meeting:
