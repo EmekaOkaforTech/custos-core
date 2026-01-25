@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import make_url
+from urllib.parse import quote_plus
 
 from app.models import Base
 from sqlalchemy import text
@@ -38,10 +39,10 @@ def run_migrations_online():
         key = get_database_key()
         if not key:
             raise RuntimeError("CUSTOS_DATABASE_KEY is required for migrations.")
-        parsed = make_url(url)
-        if not parsed.query.get("password"):
-            parsed = parsed.update_query_dict({"password": key})
-            url = str(parsed)
+        if "password=" not in url:
+            encoded = quote_plus(key)
+            separator = "&" if "?" in url else "?"
+            url = f"{url}{separator}password={encoded}"
     configuration["sqlalchemy.url"] = url
     connectable = engine_from_config(
         configuration,
