@@ -13,5 +13,6 @@ class Commitment(Base):
     due_at = Column(DateTime, nullable=True)
     acknowledged = Column(Boolean, default=False, nullable=False)
     source_id = Column(String, ForeignKey("source_record.id"), nullable=False, index=True)
+    rule_id = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -3,6 +3,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
+from app.db import SessionLocal, init_db
+from app.models.audit_log import AuditLog
+from app.models.commitment import Commitment
+from app.models.ingestion_job import IngestionJob
+from app.models.meeting import Meeting
+from app.models.meeting_participant import MeetingParticipant
+from app.models.person import Person
+from app.models.risk_flag import RiskFlag
+from app.models.source_record import SourceRecord
+from app.scripts.seed_data import seed
 from app.security import clear_admin_key, get_admin_key, set_admin_key
 from app.settings import admin_api_enabled, get_admin_bootstrap_key, get_env
 
@@ -64,3 +74,30 @@ def clear_key(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -
     _require_admin_key(x_api_key)
     clear_admin_key()
     return {"status": "cleared"}
+
+
+@router.post("/demo/reset")
+def reset_demo_data(x_api_key: str | None = Header(default=None, alias="X-API-Key")) -> dict:
+    if not admin_api_enabled():
+        raise HTTPException(status_code=404, detail="Admin API disabled.")
+    if get_env() != "dev":
+        raise HTTPException(status_code=403, detail="Demo reset is dev-only.")
+    _require_admin_key(x_api_key)
+
+    init_db()
+    session = SessionLocal()
+    try:
+        session.query(AuditLog).delete(synchronize_session=False)
+        session.query(RiskFlag).delete(synchronize_session=False)
+        session.query(Commitment).delete(synchronize_session=False)
+        session.query(SourceRecord).delete(synchronize_session=False)
+        session.query(MeetingParticipant).delete(synchronize_session=False)
+        session.query(IngestionJob).delete(synchronize_session=False)
+        session.query(Meeting).delete(synchronize_session=False)
+        session.query(Person).delete(synchronize_session=False)
+        session.commit()
+    finally:
+        session.close()
+
+    created = seed()
+    return {"status": "reset", "created": created}

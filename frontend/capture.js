@@ -31,6 +31,7 @@ export function initCapture({ onSuccess } = {}) {
   const commitmentRelevantBy = document.getElementById('capture-commitment-relevant');
   const relevantWhen = document.getElementById('capture-relevant');
   const relevantDate = document.getElementById('capture-relevant-date');
+  const indexInMemory = document.getElementById('capture-index-memory');
   const notes = document.getElementById('capture-notes');
   const status = document.getElementById('capture-status');
   const submitButton = document.getElementById('capture-submit');
@@ -115,6 +116,11 @@ export function initCapture({ onSuccess } = {}) {
     }
   }
 
+  function applyIndexDefault(type) {
+    if (!indexInMemory) return;
+    indexInMemory.checked = type === 'reflection';
+  }
+
   function resolveRelevantAt() {
     if (!relevantWhen) return null;
     const value = relevantWhen.value;
@@ -150,6 +156,7 @@ export function initCapture({ onSuccess } = {}) {
   function applyQuickDefaults() {
     if (captureType) {
       captureType.value = 'notes';
+      applyIndexDefault('notes');
     }
     if (meetingSelect) {
       if (meetingMap.next) {
@@ -175,6 +182,7 @@ export function initCapture({ onSuccess } = {}) {
   function applyReflectionDefaults() {
     if (captureType) {
       captureType.value = 'reflection';
+      applyIndexDefault('reflection');
     }
     if (meetingSelect) {
       meetingSelect.value = 'create';
@@ -266,6 +274,7 @@ export function initCapture({ onSuccess } = {}) {
     if (!defaults) return;
     if (captureType && defaults.captureType) {
       captureType.value = defaults.captureType;
+      applyIndexDefault(defaults.captureType);
     }
     if (defaults.people && defaults.people.length) {
       setSelectedPeople(defaults.people);
@@ -487,6 +496,7 @@ export function initCapture({ onSuccess } = {}) {
       return;
     }
     const captureValue = captureType?.value || 'notes';
+    const indexFlag = indexInMemory ? indexInMemory.checked : captureValue === 'reflection';
     const peopleIds = Array.from(selectedPeople.keys());
     const relevantAt = resolveRelevantAt();
     const commitmentRelevantAt = commitmentRelevantBy?.value
@@ -499,6 +509,7 @@ export function initCapture({ onSuccess } = {}) {
       people_ids: peopleIds.length ? peopleIds : undefined,
       relevant_at: relevantAt || undefined,
       commitment_relevant_by: commitmentRelevantAt || undefined,
+      index_in_memory: indexFlag,
     };
 
     try {
@@ -556,6 +567,9 @@ export function initCapture({ onSuccess } = {}) {
     void loadMeetings();
     loadPeople();
     applyStoredDefaults();
+    if (captureType) {
+      applyIndexDefault(captureType.value);
+    }
     updateMeetingDetail();
     setAdvancedVisible(true);
     if (meetingSelect) {
@@ -577,6 +591,9 @@ export function initCapture({ onSuccess } = {}) {
       }
     });
     applyStoredDefaults();
+    if (captureType) {
+      applyIndexDefault(captureType.value);
+    }
     setAdvancedVisible(false);
   }
 
@@ -612,6 +629,11 @@ export function initCapture({ onSuccess } = {}) {
     advancedToggle.addEventListener('click', () => {
       const isHidden = advancedSection?.classList.contains('hidden');
       setAdvancedVisible(Boolean(isHidden));
+    });
+  }
+  if (captureType) {
+    captureType.addEventListener('change', () => {
+      applyIndexDefault(captureType.value);
     });
   }
   if (resetDefaults) {

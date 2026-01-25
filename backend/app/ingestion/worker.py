@@ -121,6 +121,7 @@ def _process_job(session: Session, job: IngestionJob):
             uri=f"local://sources/{source_id}",
             relevant_at=job.relevant_at,
             dedupe_key=dedupe_key,
+            index_in_memory=bool(job.index_in_memory),
         )
         session.add(source)
         job.source_id = source_id
@@ -131,24 +132,26 @@ def _process_job(session: Session, job: IngestionJob):
         excerpt = (job.payload or "").strip()
         if len(excerpt) > 200:
             excerpt = f"{excerpt[:197]}…"
-        try:
-            add_documents(
-                documents=[job.payload or ""],
-                metadata=[
-                    {
-                        "source_id": source_id,
-                        "meeting_id": job.meeting_id,
-                        "meeting_title": meeting_title,
-                        "captured_at": source.captured_at.isoformat(),
-                        "capture_type": job.capture_type,
-                        "excerpt": excerpt or "No capture excerpt available.",
-                    }
-                ],
-                ids=[source_id],
-            )
-        except Exception:
-            # Vector indexing is best-effort and must never block ingestion.
-            pass
+        should_index = job.index_in_memory if job.index_in_memory is not None else job.capture_type == "reflection"
+        if should_index:
+            try:
+                add_documents(
+                    documents=[job.payload or ""],
+                    metadata=[
+                        {
+                            "source_id": source_id,
+                            "meeting_id": job.meeting_id,
+                            "meeting_title": meeting_title,
+                            "captured_at": source.captured_at.isoformat(),
+                            "capture_type": job.capture_type,
+                            "excerpt": excerpt or "No capture excerpt available.",
+                        }
+                    ],
+                    ids=[source_id],
+                )
+            except Exception as exc:
+                # Vector indexing is best-effort and must never block ingestion.
+                print(f"Vector indexing failed for {source_id}: {exc}")
 
         commitments = [] if job.capture_type == "reflection" else extract_commitments(job.payload)
         for item in commitments:

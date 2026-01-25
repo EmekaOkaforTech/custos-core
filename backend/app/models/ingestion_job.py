@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, String, Text
+from sqlalchemy import Boolean, Column, DateTime, String, Text
 
 from .base import Base
 
@@ -16,6 +16,7 @@ class IngestionJob(Base):
     source_id = Column(String, nullable=True)
     relevant_at = Column(DateTime, nullable=True)
     commitment_relevant_by = Column(DateTime, nullable=True)
+    index_in_memory = Column(Boolean, nullable=False, default=False)
     dedupe_key = Column(String, nullable=True, index=True, unique=True)
     status = Column(String, nullable=False)
     started_at = Column(DateTime, nullable=True)

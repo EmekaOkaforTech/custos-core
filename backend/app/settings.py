@@ -25,6 +25,10 @@ def get_qdrant_path() -> str:
     return os.path.join(get_data_dir(), "qdrant")
 
 
+def get_qdrant_url() -> str:
+    return os.getenv("CUSTOS_QDRANT_URL", "").strip()
+
+
 def get_db_path() -> str:
     db_path = os.getenv("CUSTOS_DB_PATH")
     if db_path:

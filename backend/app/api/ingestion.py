@@ -24,6 +24,7 @@ class IngestionRequest(BaseModel):
     people_ids: list[str] | None = None
     relevant_at: datetime | None = None
     commitment_relevant_by: datetime | None = None
+    index_in_memory: bool | None = None
 
 
 class IngestionResponse(BaseModel):
@@ -106,6 +107,11 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
                 people_json = json.dumps(existing_ids)
     normalized_payload = _normalize_payload(request.payload)
     relevant_at = _normalize_relevant_at(request.relevant_at)
+    index_in_memory = (
+        request.index_in_memory
+        if request.index_in_memory is not None
+        else request.capture_type == "reflection"
+    )
     dedupe_key = _dedupe_key(request.meeting_id, request.capture_type, normalized_payload, people_json, relevant_at)
     if normalized_payload:
         cutoff = datetime.utcnow() - timedelta(seconds=DEDUP_WINDOW_SECONDS)
@@ -132,6 +138,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         people_ids=people_json,
         relevant_at=relevant_at,
         commitment_relevant_by=request.commitment_relevant_by,
+        index_in_memory=index_in_memory,
         dedupe_key=dedupe_key,
         status="queued",
     )

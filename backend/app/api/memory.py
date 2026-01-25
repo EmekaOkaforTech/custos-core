@@ -22,7 +22,15 @@ def surface_memory(db: Session = Depends(get_db), limit: int = 5) -> dict:
     if not reflection or not reflection.payload:
         return {"query": None, "items": [], "why": "No reflections captured yet."}
 
-    results = query_documents(reflection.payload, limit=limit)
+    try:
+        results = query_documents(reflection.payload, limit=limit)
+    except RuntimeError as exc:
+        return {
+            "query": None,
+            "items": [],
+            "why": "Memory store unavailable. Ensure Qdrant is running locally or configured.",
+            "error": str(exc),
+        }
     items = []
     for payload in results:
         items.append(
