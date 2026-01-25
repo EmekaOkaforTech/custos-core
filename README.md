@@ -71,6 +71,18 @@ export CUSTOS_DATABASE_KEY="your-key"
 bash custos-core/scripts/dev.sh
 ```
 
+## Migrations (SQLCipher)
+If Alembic reports tables already exist, your database likely has an empty `alembic_version` table. In dev, you can opt-in to auto-stamp:
+```bash
+export CUSTOS_ENV=dev
+export CUSTOS_AUTO_STAMP=1
+```
+Otherwise, use the repair helper:
+```bash
+export CUSTOS_DATABASE_KEY="your-key"
+python custos-core/backend/scripts/alembic_repair.py stamp --head 0007_relevant_at
+```
+
 ## Run Locally
 ```bash
 export CUSTOS_DATABASE_KEY="your-key"
