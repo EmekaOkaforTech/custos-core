@@ -1,9 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
-from sqlalchemy.engine import make_url
-from urllib.parse import quote_plus
+from sqlalchemy import create_engine, pool
 
 from app.models import Base
 from sqlalchemy import text
@@ -33,22 +31,22 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    configuration = config.get_section(config.config_ini_section)
     url = get_url()
+    connect_args = {}
+    engine_kwargs = {"poolclass": pool.NullPool}
     if url.startswith("sqlite+pysqlcipher") and not allow_plaintext_db():
         key = get_database_key()
         if not key:
             raise RuntimeError("CUSTOS_DATABASE_KEY is required for migrations.")
-        if "password=" not in url:
-            encoded = quote_plus(key)
-            separator = "&" if "?" in url else "?"
-            url = f"{url}{separator}password={encoded}"
-    configuration["sqlalchemy.url"] = url
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+        try:
+            import sqlcipher3
+        except ImportError as exc:
+            raise RuntimeError(
+                "SQLCipher driver missing. Install sqlcipher3-binary and avoid conda base."
+            ) from exc
+        url = url.replace("sqlite+pysqlcipher:///", "sqlite:///", 1)
+        engine_kwargs["module"] = sqlcipher3.dbapi2
+    connectable = create_engine(url, connect_args=connect_args, **engine_kwargs)
     with connectable.connect() as connection:
         if not allow_plaintext_db():
             key = get_database_key()
