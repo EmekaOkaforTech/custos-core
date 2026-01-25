@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db import SessionLocal, init_db
 from app.ingestion.rules import extract_commitments, extract_risk_flags
+import hashlib
 from app.models.commitment import Commitment
 from app.models.ingestion_job import IngestionJob
 import json
@@ -42,11 +43,24 @@ def _normalize_payload(payload: str | None) -> str:
     return " ".join(payload.strip().split()).lower()
 
 
+def _dedupe_key(job: IngestionJob, normalized_payload: str) -> str:
+    parts = [
+        job.meeting_id,
+        job.capture_type,
+        normalized_payload,
+        (job.people_ids or "").strip(),
+        job.relevant_at.isoformat() if job.relevant_at else "",
+    ]
+    raw = "|".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: int = 300):
     if not job.payload:
         return None
     cutoff = datetime.utcnow() - timedelta(seconds=window_seconds)
     normalized = _normalize_payload(job.payload)
+    dedupe_key = _dedupe_key(job, normalized)
     candidates = (
         session.query(IngestionJob)
         .filter(IngestionJob.status == "succeeded")
@@ -56,6 +70,7 @@ def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: 
         .filter(IngestionJob.capture_type == job.capture_type)
         .filter(IngestionJob.people_ids == job.people_ids)
         .filter(IngestionJob.relevant_at == job.relevant_at)
+        .filter(IngestionJob.dedupe_key == dedupe_key)
         .order_by(IngestionJob.completed_at.desc())
         .all()
     )
@@ -80,6 +95,21 @@ def _process_job(session: Session, job: IngestionJob):
             session.commit()
             return
 
+        normalized_payload = _normalize_payload(job.payload)
+        dedupe_key = _dedupe_key(job, normalized_payload)
+        existing_source = (
+            session.query(SourceRecord)
+            .filter(SourceRecord.dedupe_key == dedupe_key)
+            .first()
+        )
+        if existing_source:
+            job.status = "succeeded"
+            job.completed_at = datetime.utcnow()
+            job.source_id = existing_source.id
+            job.error = "deduped"
+            job.dedupe_key = dedupe_key
+            session.commit()
+            return
         source_id = f"s_{uuid4().hex}"
         source = SourceRecord(
             id=source_id,
@@ -88,12 +118,21 @@ def _process_job(session: Session, job: IngestionJob):
             capture_type=job.capture_type,
             uri=f"local://sources/{source_id}",
             relevant_at=job.relevant_at,
+            dedupe_key=dedupe_key,
         )
         session.add(source)
         job.source_id = source_id
+        job.dedupe_key = dedupe_key
 
         commitments = extract_commitments(job.payload)
         for item in commitments:
+            existing_commitment = (
+                session.query(Commitment)
+                .filter(Commitment.source_id == source_id, Commitment.text == item.text)
+                .first()
+            )
+            if existing_commitment:
+                continue
             commitment = Commitment(
                 id=f"c_{uuid4().hex}",
                 text=item.text,

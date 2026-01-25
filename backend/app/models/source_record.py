@@ -14,4 +14,5 @@ class SourceRecord(Base):
     capture_type = Column(String, nullable=False)
     uri = Column(String, nullable=False)
     relevant_at = Column(DateTime, nullable=True)
+    dedupe_key = Column(String, nullable=True, index=True, unique=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import hashlib
 from uuid import uuid4
 from datetime import timedelta
 
@@ -66,6 +67,18 @@ def _normalize_payload(payload: str | None) -> str:
     return " ".join(payload.strip().split()).lower()
 
 
+def _dedupe_key(meeting_id: str, capture_type: str, payload: str, people_ids: str | None, relevant_at: datetime | None) -> str:
+    parts = [
+        meeting_id,
+        capture_type,
+        payload,
+        (people_ids or "").strip(),
+        relevant_at.isoformat() if relevant_at else "",
+    ]
+    raw = "|".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _normalize_relevant_at(value: datetime | None) -> datetime | None:
     if not value:
         return None
@@ -92,6 +105,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
                 people_json = json.dumps(existing_ids)
     normalized_payload = _normalize_payload(request.payload)
     relevant_at = _normalize_relevant_at(request.relevant_at)
+    dedupe_key = _dedupe_key(request.meeting_id, request.capture_type, normalized_payload, people_json, relevant_at)
     if normalized_payload:
         cutoff = datetime.utcnow() - timedelta(seconds=DEDUP_WINDOW_SECONDS)
         candidates = (
@@ -101,6 +115,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
             .filter(IngestionJob.created_at >= cutoff)
             .filter(IngestionJob.people_ids == people_json)
             .filter(IngestionJob.relevant_at == relevant_at)
+            .filter(IngestionJob.dedupe_key == dedupe_key)
             .order_by(IngestionJob.created_at.desc())
             .all()
         )
@@ -115,6 +130,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         capture_type=request.capture_type,
         people_ids=people_json,
         relevant_at=relevant_at,
+        dedupe_key=dedupe_key,
         status="queued",
     )
     db.add(job)
