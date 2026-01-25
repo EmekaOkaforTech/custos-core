@@ -2,6 +2,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import make_url
 
 from app.models import Base
 from sqlalchemy import text
@@ -32,7 +33,16 @@ def run_migrations_offline():
 
 def run_migrations_online():
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = get_url()
+    url = get_url()
+    if url.startswith("sqlite+pysqlcipher") and not allow_plaintext_db():
+        key = get_database_key()
+        if not key:
+            raise RuntimeError("CUSTOS_DATABASE_KEY is required for migrations.")
+        parsed = make_url(url)
+        if not parsed.query.get("password"):
+            parsed = parsed.update_query_dict({"password": key})
+            url = str(parsed)
+    configuration["sqlalchemy.url"] = url
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
