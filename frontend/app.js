@@ -86,6 +86,11 @@ function renderCommitment(item) {
   const text = document.createElement('div');
   text.textContent = item.text;
 
+  const editButton = document.createElement('button');
+  editButton.className = 'button-link';
+  editButton.type = 'button';
+  editButton.textContent = 'Relevant by';
+
   const button = document.createElement('button');
   button.className = 'button-link';
   button.textContent = item.acknowledged ? 'Undo' : 'Acknowledge';
@@ -105,13 +110,50 @@ function renderCommitment(item) {
   const meta = document.createElement('div');
   meta.className = 'commitment-meta';
   const created = formatDate(item.created_at) || 'unknown';
-  const due = item.due_at ? formatDate(item.due_at) : 'no due date';
-  meta.textContent = `Created ${created} · Due ${due}`;
+  const relevantBy = item.due_at ? formatDate(item.due_at) : 'No time intent set';
+  meta.textContent = `Created ${created} · Relevant by ${relevantBy}`;
+
+  const editRow = document.createElement('div');
+  editRow.className = 'status-details hidden';
+  const editInput = document.createElement('input');
+  editInput.type = 'date';
+  editInput.value = item.due_at ? item.due_at.slice(0, 10) : '';
+  const editSave = document.createElement('button');
+  editSave.className = 'button-link';
+  editSave.type = 'button';
+  editSave.textContent = 'Save';
+  const editStatus = document.createElement('span');
+  editStatus.className = 'muted';
+  editStatus.textContent = '';
+  editSave.addEventListener('click', async () => {
+    const value = editInput.value ? new Date(`${editInput.value}T09:00:00`).toISOString() : null;
+    const response = await fetch(apiUrl(`/api/commitments/${item.id}`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
+      body: JSON.stringify({ relevant_by: value }),
+    });
+    if (response.ok) {
+      item.due_at = value;
+      const next = item.due_at ? formatDate(item.due_at) : 'No time intent set';
+      meta.textContent = `Created ${created} · Relevant by ${next}`;
+      editStatus.textContent = 'Saved.';
+    } else {
+      editStatus.textContent = 'Unable to save.';
+    }
+  });
+  editButton.addEventListener('click', () => {
+    editRow.classList.toggle('hidden');
+  });
+  editRow.appendChild(editInput);
+  editRow.appendChild(editSave);
+  editRow.appendChild(editStatus);
 
   row.appendChild(text);
+  row.appendChild(editButton);
   row.appendChild(button);
   card.appendChild(row);
   card.appendChild(meta);
+  card.appendChild(editRow);
   return card;
 }
 

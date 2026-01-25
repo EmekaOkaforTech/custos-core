@@ -136,7 +136,7 @@ def _process_job(session: Session, job: IngestionJob):
             commitment = Commitment(
                 id=f"c_{uuid4().hex}",
                 text=item.text,
-                due_at=None,
+                due_at=job.commitment_relevant_by,
                 acknowledged=False,
                 source_id=source_id,
                 rule_id=item.rule_id,

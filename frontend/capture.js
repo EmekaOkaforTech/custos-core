@@ -27,6 +27,7 @@ export function initCapture({ onSuccess } = {}) {
   const advancedSection = document.getElementById('capture-advanced');
   const peopleGroup = document.getElementById('capture-people-group');
   const captureType = document.getElementById('capture-type');
+  const commitmentRelevantBy = document.getElementById('capture-commitment-relevant');
   const relevantWhen = document.getElementById('capture-relevant');
   const relevantDate = document.getElementById('capture-relevant-date');
   const notes = document.getElementById('capture-notes');
@@ -458,12 +459,16 @@ export function initCapture({ onSuccess } = {}) {
     const captureValue = captureType?.value || 'notes';
     const peopleIds = Array.from(selectedPeople.keys());
     const relevantAt = resolveRelevantAt();
+    const commitmentRelevantAt = commitmentRelevantBy?.value
+      ? new Date(`${commitmentRelevantBy.value}T09:00:00`).toISOString()
+      : null;
     const body = {
       meeting_id: meeting.id,
       capture_type: captureValue,
       payload,
       people_ids: peopleIds.length ? peopleIds : undefined,
       relevant_at: relevantAt || undefined,
+      commitment_relevant_by: commitmentRelevantAt || undefined,
     };
 
     try {
@@ -489,6 +494,9 @@ export function initCapture({ onSuccess } = {}) {
         people: Array.from(selectedPeople.entries()).map(([id, name]) => ({ id, name })),
       });
       clearPeople();
+      if (commitmentRelevantBy) {
+        commitmentRelevantBy.value = '';
+      }
       if (relevantWhen) {
         relevantWhen.value = '';
       }

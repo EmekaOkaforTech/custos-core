@@ -23,6 +23,7 @@ class IngestionRequest(BaseModel):
     payload: str
     people_ids: list[str] | None = None
     relevant_at: datetime | None = None
+    commitment_relevant_by: datetime | None = None
 
 
 class IngestionResponse(BaseModel):
@@ -130,6 +131,7 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         capture_type=request.capture_type,
         people_ids=people_json,
         relevant_at=relevant_at,
+        commitment_relevant_by=request.commitment_relevant_by,
         dedupe_key=dedupe_key,
         status="queued",
     )

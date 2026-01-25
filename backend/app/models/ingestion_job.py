@@ -15,6 +15,7 @@ class IngestionJob(Base):
     people_ids = Column(Text, nullable=True)
     source_id = Column(String, nullable=True)
     relevant_at = Column(DateTime, nullable=True)
+    commitment_relevant_by = Column(DateTime, nullable=True)
     dedupe_key = Column(String, nullable=True, index=True, unique=True)
     status = Column(String, nullable=False)
     started_at = Column(DateTime, nullable=True)
