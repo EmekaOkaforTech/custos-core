@@ -99,6 +99,16 @@ export function initCapture({ onSuccess } = {}) {
     }
   }
 
+  function updatePeopleActionLabel() {
+    if (!addPerson) return;
+    const type = peopleType?.value || 'person';
+    if (type === 'org') {
+      addPerson.textContent = 'Add organization';
+    } else {
+      addPerson.textContent = 'Add person';
+    }
+  }
+
   function setRelevantDateVisible(visible) {
     if (relevantDate) {
       relevantDate.classList.toggle('hidden', !visible);
@@ -159,6 +169,8 @@ export function initCapture({ onSuccess } = {}) {
       notes.focus();
     }
   }
+
+  updatePeopleActionLabel();
 
   function applyReflectionDefaults() {
     if (captureType) {
@@ -304,7 +316,7 @@ export function initCapture({ onSuccess } = {}) {
 
   function guardSetupReady() {
     if (!getApiBase() || !isSetupComplete()) {
-      setStatus('Connect to your backend to capture notes.');
+      setStatus('Connect to your backend to capture context.');
       if (submitButton) {
         submitButton.disabled = true;
       }
@@ -630,6 +642,9 @@ export function initCapture({ onSuccess } = {}) {
   }
   if (meetingTitleInput) {
     meetingTitleInput.addEventListener('input', updateMeetingDetail);
+  }
+  if (peopleType) {
+    peopleType.addEventListener('change', updatePeopleActionLabel);
   }
   if (addPerson && peopleInput) {
     addPerson.addEventListener('click', () => {

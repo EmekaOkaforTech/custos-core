@@ -118,7 +118,7 @@
     <div class="modal-backdrop" data-capture-close></div>
     <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="capture-title">
       <div class="modal-header">
-        <h2 id="capture-title">Capture notes</h2>
+        <h2 id="capture-title">Capture context</h2>
         <button class="icon-button" id="capture-close" type="button" aria-label="Close capture panel">×</button>
       </div>
       <form class="modal-body" id="capture-form">
@@ -130,12 +130,12 @@
             <option value="today">Today</option>
             <option value="create">Create new context</option>
           </select>
-          <p class="muted" id="capture-meeting-detail">Select a context to attach notes.</p>
+          <p class="muted" id="capture-meeting-detail">Select a context to attach capture details.</p>
           <label for="capture-meeting-title" id="capture-meeting-title-label" class="hidden">New context title</label>
           <div class="tag-input hidden" id="capture-meeting-create">
             <input id="capture-meeting-title" name="meeting_title" placeholder="e.g. Lucia follow-up" />
           </div>
-          <p class="muted hidden" id="capture-meeting-help">We will create a context entry and attach your notes.</p>
+          <p class="muted hidden" id="capture-meeting-help">We will create a context entry and attach your capture.</p>
 
           <label for="capture-type">Capture type</label>
           <select id="capture-type" name="capture_type">
@@ -169,10 +169,10 @@
               <option value="person">Person</option>
               <option value="org">Organization</option>
             </select>
-            <button type="button" class="button-link" id="capture-add-person">Add person</button>
+            <button type="button" class="button-link" id="capture-add-person">Add contact</button>
           </div>
           <datalist id="people-options"></datalist>
-          <p class="muted" id="capture-people-help">Choose from the list or add a new person.</p>
+          <p class="muted" id="capture-people-help">Choose from the list or add a contact.</p>
           <div class="tag-list" id="capture-people-tags"></div>
         </div>
 
