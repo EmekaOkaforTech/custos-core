@@ -34,6 +34,8 @@ const futureRelevantSection = document.getElementById('future-relevant-section')
 const futureRelevantList = document.getElementById('future-relevant');
 const memorySection = document.getElementById('memory-section');
 const memoryCards = document.getElementById('memory-cards');
+const memoryToggle = document.getElementById('memory-toggle');
+const memoryCollapsedNote = document.getElementById('memory-collapsed-note');
 const recentCapturesSection = document.getElementById('recent-captures');
 const todaySection = document.getElementById('today');
 const demoBadge = document.getElementById('demo-badge');
@@ -79,6 +81,7 @@ function setDemoBadge(show) {
 let currentMeeting = null;
 let showAllCaptures = false;
 let captureToMove = null;
+let memoryCollapsed = false;
 
 function renderCommitment(item) {
   const card = document.createElement('div');
@@ -262,7 +265,8 @@ function renderMemory(items) {
     memoryCards.innerHTML = '<div class="card"><p class="muted">No memory surfaced yet.</p></div>';
     return;
   }
-  items.forEach(item => {
+  const list = items.slice(0, 3);
+  list.forEach(item => {
     const card = document.createElement('div');
     card.className = 'card';
     const title = document.createElement('h4');
@@ -282,6 +286,14 @@ function renderMemory(items) {
     card.appendChild(excerpt);
     memoryCards.appendChild(card);
   });
+}
+
+function applyMemoryCollapseState(hasNextContext) {
+  if (!memoryCards || !memoryToggle || !memoryCollapsedNote) return;
+  memoryCollapsed = hasNextContext ? true : false;
+  memoryCards.classList.toggle('hidden', memoryCollapsed);
+  memoryCollapsedNote.classList.toggle('hidden', !hasNextContext || !memoryCollapsed);
+  memoryToggle.textContent = memoryCollapsed ? 'Show' : 'Hide';
 }
 
 function openWhyModal(reason) {
@@ -674,6 +686,7 @@ async function loadBriefings() {
   } else {
     renderMemory([]);
   }
+  applyMemoryCollapseState(Boolean(nextData.meeting));
 
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
@@ -747,6 +760,12 @@ if (recentCapturesToggle) {
     showAllCaptures = !showAllCaptures;
     recentCapturesToggle.textContent = showAllCaptures ? 'Show less' : 'View all';
     loadBriefings();
+  });
+}
+if (memoryToggle) {
+  memoryToggle.addEventListener('click', () => {
+    memoryCollapsed = !memoryCollapsed;
+    applyMemoryCollapseState(Boolean(currentMeeting));
   });
 }
 if (captureMoveForm) {
