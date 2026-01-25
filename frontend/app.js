@@ -32,6 +32,8 @@ const briefCards = document.getElementById('brief-cards');
 const commitmentsSection = document.getElementById('commitments');
 const futureRelevantSection = document.getElementById('future-relevant-section');
 const futureRelevantList = document.getElementById('future-relevant');
+const memorySection = document.getElementById('memory-section');
+const memoryCards = document.getElementById('memory-cards');
 const recentCapturesSection = document.getElementById('recent-captures');
 const todaySection = document.getElementById('today');
 const demoBadge = document.getElementById('demo-badge');
@@ -251,6 +253,35 @@ function renderFutureRelevant(items) {
     futureRelevantList.appendChild(card);
   });
   futureRelevantSection.classList.remove('hidden');
+}
+
+function renderMemory(items) {
+  if (!memoryCards) return;
+  memoryCards.innerHTML = '';
+  if (!Array.isArray(items) || !items.length) {
+    memoryCards.innerHTML = '<div class="card"><p class="muted">No memory surfaced yet.</p></div>';
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const title = document.createElement('h4');
+    title.textContent = item.meeting_title || 'Context';
+    const meta = document.createElement('p');
+    meta.className = 'muted';
+    const captured = item.captured_at ? formatDate(item.captured_at) : 'unknown';
+    meta.textContent = `Captured ${captured} · ${item.capture_type || 'context'}`;
+    const why = document.createElement('p');
+    why.className = 'muted';
+    why.textContent = 'Why: matched your most recent reflection.';
+    const excerpt = document.createElement('p');
+    excerpt.textContent = item.excerpt || 'No capture excerpt available.';
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(why);
+    card.appendChild(excerpt);
+    memoryCards.appendChild(card);
+  });
 }
 
 function openWhyModal(reason) {
@@ -636,6 +667,14 @@ async function loadBriefings() {
     }
   }
 
+  const memoryResponse = await fetch(apiUrl('/api/memory/surface'), { headers: getApiHeaders() });
+  if (memoryResponse.ok) {
+    const memoryData = await memoryResponse.json();
+    renderMemory(memoryData.items || []);
+  } else {
+    renderMemory([]);
+  }
+
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
   const statusResponse = await fetch(apiUrl('/api/status'), { headers: getApiHeaders() });
@@ -675,6 +714,7 @@ loadBriefings().catch(() => {
   renderReflection({ meetings: [], commitments: [] });
   renderRecentCaptures([]);
   renderReflections([]);
+  renderMemory([]);
   if (recentCapturesToggle) {
     recentCapturesToggle.classList.add('hidden');
   }

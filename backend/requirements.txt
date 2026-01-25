@@ -6,3 +6,4 @@ sqlcipher3-binary>=0.5.2
 alembic>=1.12,<2.0
 httpx>=0.24,<1.0
 pytest>=7.4,<9.0
+qdrant-client[fastembed]>=1.14.2

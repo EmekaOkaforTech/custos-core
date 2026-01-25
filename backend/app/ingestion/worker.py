@@ -14,6 +14,8 @@ import json
 from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
 from app.models.risk_flag import RiskFlag
+from app.models.meeting import Meeting
+from app.ops.qdrant_store import add_documents
 from app.models.source_record import SourceRecord
 
 BACKOFF_SECONDS = 30
@@ -123,6 +125,30 @@ def _process_job(session: Session, job: IngestionJob):
         session.add(source)
         job.source_id = source_id
         job.dedupe_key = dedupe_key
+
+        meeting = session.query(Meeting).filter(Meeting.id == job.meeting_id).first()
+        meeting_title = meeting.title if meeting else "Context"
+        excerpt = (job.payload or "").strip()
+        if len(excerpt) > 200:
+            excerpt = f"{excerpt[:197]}…"
+        try:
+            add_documents(
+                documents=[job.payload or ""],
+                metadata=[
+                    {
+                        "source_id": source_id,
+                        "meeting_id": job.meeting_id,
+                        "meeting_title": meeting_title,
+                        "captured_at": source.captured_at.isoformat(),
+                        "capture_type": job.capture_type,
+                        "excerpt": excerpt or "No capture excerpt available.",
+                    }
+                ],
+                ids=[source_id],
+            )
+        except Exception:
+            # Vector indexing is best-effort and must never block ingestion.
+            pass
 
         commitments = [] if job.capture_type == "reflection" else extract_commitments(job.payload)
         for item in commitments:
