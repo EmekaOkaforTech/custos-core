@@ -34,8 +34,6 @@ const decisionLogSection = document.getElementById('decision-log-section');
 const decisionLogCards = document.getElementById('decision-log');
 const decisionCooccurrenceSection = document.getElementById('decision-cooccurrence-section');
 const decisionCooccurrenceCards = document.getElementById('decision-cooccurrence');
-const decisionMultipleSection = document.getElementById('decision-multiple-section');
-const decisionMultipleCards = document.getElementById('decision-multiple');
 const futureRelevantSection = document.getElementById('future-relevant-section');
 const futureRelevantList = document.getElementById('future-relevant');
 const memorySection = document.getElementById('memory-section');
@@ -249,7 +247,7 @@ function renderDecisionCooccurrence(items) {
     heading.textContent = title;
     const note = document.createElement('p');
     note.className = 'muted';
-    note.textContent = 'Multiple decision captures in this context.';
+    note.textContent = 'Multiple decision records in this context.';
     card.appendChild(heading);
     card.appendChild(note);
     group.forEach(entry => {
@@ -266,53 +264,6 @@ function renderDecisionCooccurrence(items) {
   });
 }
 
-function renderMultipleDecisionRecords(items) {
-  if (!decisionMultipleCards) return;
-  decisionMultipleCards.innerHTML = '';
-  const decisions = (items || []).filter(item => item.capture_type === 'decision');
-  if (!decisions.length) {
-    decisionMultipleCards.innerHTML = '<div class="card"><p class="muted">No multiple decision records yet.</p></div>';
-    return;
-  }
-  const grouped = new Map();
-  decisions.forEach(item => {
-    const title = item.meeting?.title || 'Context';
-    if (!grouped.has(title)) grouped.set(title, []);
-    grouped.get(title).push(item);
-  });
-
-  const contexts = Array.from(grouped.entries())
-    .filter(([, group]) => group.length >= 2)
-    .slice(0, 3);
-
-  if (!contexts.length) {
-    decisionMultipleCards.innerHTML = '<div class="card"><p class="muted">No multiple decision records yet.</p></div>';
-    return;
-  }
-
-  contexts.forEach(([title, group]) => {
-    const card = document.createElement('article');
-    card.className = 'card';
-    const heading = document.createElement('h4');
-    heading.textContent = title;
-    const note = document.createElement('p');
-    note.className = 'muted';
-    note.textContent = 'Multiple decision records in this context.';
-    card.appendChild(heading);
-    card.appendChild(note);
-    group.forEach(entry => {
-      const payload = entry.payload || entry.excerpt || 'Decision captured.';
-      const excerpt = document.createElement('p');
-      excerpt.textContent = payload.length > 200 ? `${payload.slice(0, 197)}…` : payload;
-      const meta = document.createElement('p');
-      meta.className = 'muted';
-      meta.textContent = entry.captured_at ? formatDate(entry.captured_at) : 'Date unavailable';
-      card.appendChild(excerpt);
-      card.appendChild(meta);
-    });
-    decisionMultipleCards.appendChild(card);
-  });
-}
 
 function renderRecentCapture(item) {
   const card = document.createElement('div');
@@ -823,11 +774,9 @@ async function loadBriefings() {
       const decisionData = await decisionResponse.json();
       renderDecisionLog(decisionData);
       renderDecisionCooccurrence(decisionData);
-      renderMultipleDecisionRecords(decisionData);
     } else {
       renderDecisionLog(recentData);
       renderDecisionCooccurrence(recentData);
-      renderMultipleDecisionRecords(recentData);
     }
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.toggle('hidden', recentData.length <= 2);
@@ -838,7 +787,6 @@ async function loadBriefings() {
     renderReflections([]);
     renderDecisionLog([]);
     renderDecisionCooccurrence([]);
-    renderMultipleDecisionRecords([]);
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.add('hidden');
     }
