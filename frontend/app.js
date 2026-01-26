@@ -32,6 +32,8 @@ const briefCards = document.getElementById('brief-cards');
 const commitmentsSection = document.getElementById('commitments');
 const decisionLogSection = document.getElementById('decision-log-section');
 const decisionLogCards = document.getElementById('decision-log');
+const decisionCooccurrenceSection = document.getElementById('decision-cooccurrence-section');
+const decisionCooccurrenceCards = document.getElementById('decision-cooccurrence');
 const futureRelevantSection = document.getElementById('future-relevant-section');
 const futureRelevantList = document.getElementById('future-relevant');
 const memorySection = document.getElementById('memory-section');
@@ -205,6 +207,60 @@ function renderDecisionLog(items) {
       card.appendChild(meta);
     });
     decisionLogCards.appendChild(card);
+  });
+}
+
+function renderDecisionCooccurrence(items) {
+  if (!decisionCooccurrenceCards) return;
+  decisionCooccurrenceCards.innerHTML = '';
+  const now = Date.now();
+  const cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const decisions = (items || [])
+    .filter(item => item.capture_type === 'decision')
+    .filter(item => !item.captured_at || new Date(item.captured_at) >= cutoff);
+
+  if (!decisions.length) {
+    decisionCooccurrenceCards.innerHTML = '<div class="card"><p class="muted">No co-occurring decisions yet.</p></div>';
+    return;
+  }
+
+  const grouped = new Map();
+  decisions.forEach(item => {
+    const title = item.meeting?.title || 'Context';
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push(item);
+  });
+
+  const contexts = Array.from(grouped.entries())
+    .filter(([, group]) => group.length >= 2)
+    .slice(0, 3);
+
+  if (!contexts.length) {
+    decisionCooccurrenceCards.innerHTML = '<div class="card"><p class="muted">No co-occurring decisions yet.</p></div>';
+    return;
+  }
+
+  contexts.forEach(([title, group]) => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    const heading = document.createElement('h4');
+    heading.textContent = title;
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = 'Multiple decision captures in this context.';
+    card.appendChild(heading);
+    card.appendChild(note);
+    group.forEach(entry => {
+      const payload = entry.payload || entry.excerpt || 'Decision captured.';
+      const excerpt = document.createElement('p');
+      excerpt.textContent = payload.length > 200 ? `${payload.slice(0, 197)}…` : payload;
+      const meta = document.createElement('p');
+      meta.className = 'muted';
+      meta.textContent = entry.captured_at ? formatDate(entry.captured_at) : 'Date unavailable';
+      card.appendChild(excerpt);
+      card.appendChild(meta);
+    });
+    decisionCooccurrenceCards.appendChild(card);
   });
 }
 
@@ -716,8 +772,10 @@ async function loadBriefings() {
     if (decisionResponse.ok) {
       const decisionData = await decisionResponse.json();
       renderDecisionLog(decisionData);
+      renderDecisionCooccurrence(decisionData);
     } else {
       renderDecisionLog(recentData);
+      renderDecisionCooccurrence(recentData);
     }
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.toggle('hidden', recentData.length <= 2);
@@ -727,6 +785,7 @@ async function loadBriefings() {
     renderRecentCaptures([]);
     renderReflections([]);
     renderDecisionLog([]);
+    renderDecisionCooccurrence([]);
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.add('hidden');
     }
