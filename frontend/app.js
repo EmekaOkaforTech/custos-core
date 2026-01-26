@@ -88,6 +88,7 @@ let currentMeeting = null;
 let showAllCaptures = false;
 let captureToMove = null;
 let memoryCollapsed = false;
+let hasAppliedMemoryDefault = false;
 
 function renderCommitment(item) {
   const card = document.createElement('div');
@@ -459,6 +460,42 @@ function renderFutureRelevant(items) {
   futureRelevantSection.classList.remove('hidden');
 }
 
+function renderFuturePrimary(items) {
+  const fragment = document.createDocumentFragment();
+  items.forEach(item => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    const title = document.createElement('h2');
+    title.textContent = item.meeting?.title || 'Context';
+    const meta = document.createElement('p');
+    meta.className = 'muted';
+    const relevant = item.relevant_at ? formatDate(item.relevant_at) : 'unspecified';
+    const captured = item.captured_at ? formatDate(item.captured_at) : 'unknown';
+    meta.textContent = `Relevant on ${relevant} · Marked ${captured}`;
+    const note = document.createElement('p');
+    note.className = 'muted';
+    note.textContent = 'Shown because there is no upcoming context.';
+    card.appendChild(title);
+    card.appendChild(meta);
+    card.appendChild(note);
+    fragment.appendChild(card);
+  });
+  return fragment;
+}
+
+function renderNoActiveNarrative() {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const title = document.createElement('h2');
+  title.textContent = 'No active narrative';
+  const text = document.createElement('p');
+  text.className = 'muted';
+  text.textContent = 'Capture context or mark future relevance to begin.';
+  card.appendChild(title);
+  card.appendChild(text);
+  return card;
+}
+
 function renderMemory(items) {
   if (!memoryCards) return;
   memoryCards.innerHTML = '';
@@ -489,11 +526,14 @@ function renderMemory(items) {
   });
 }
 
-function applyMemoryCollapseState(hasNextContext) {
+function applyMemoryCollapseState() {
   if (!memoryCards || !memoryToggle || !memoryCollapsedNote) return;
-  memoryCollapsed = hasNextContext ? true : false;
+  if (!hasAppliedMemoryDefault) {
+    memoryCollapsed = true;
+    hasAppliedMemoryDefault = true;
+  }
   memoryCards.classList.toggle('hidden', memoryCollapsed);
-  memoryCollapsedNote.classList.toggle('hidden', !hasNextContext || !memoryCollapsed);
+  memoryCollapsedNote.classList.toggle('hidden', !memoryCollapsed);
   memoryToggle.textContent = memoryCollapsed ? 'Show' : 'Hide';
 }
 
@@ -800,12 +840,23 @@ async function loadBriefings() {
 
   if (!nextData.meeting) {
     briefCards.innerHTML = '';
-    briefCards.appendChild(renderEmptyState());
+    const futureItems = Array.isArray(nextData.future_relevant) ? nextData.future_relevant : [];
+    if (futureItems.length) {
+      briefTitle.textContent = 'Context brief — future relevance';
+      briefTimer.textContent = 'No upcoming context';
+      briefCards.appendChild(renderFuturePrimary(futureItems));
+    } else {
+      briefTitle.textContent = 'Context brief';
+      briefTimer.textContent = 'No active narrative';
+      briefCards.appendChild(renderNoActiveNarrative());
+    }
     currentMeeting = null;
     if (meetingRenameOpen) {
       meetingRenameOpen.disabled = true;
     }
-    renderFutureRelevant(nextData.future_relevant || []);
+    if (futureRelevantSection) {
+      futureRelevantSection.classList.add('hidden');
+    }
   } else {
     currentMeeting = nextData.meeting;
     if (meetingRenameOpen) {
@@ -906,7 +957,7 @@ async function loadBriefings() {
   } else {
     renderMemory([]);
   }
-  applyMemoryCollapseState(Boolean(nextData.meeting));
+  applyMemoryCollapseState();
 
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
@@ -985,7 +1036,7 @@ if (recentCapturesToggle) {
 if (memoryToggle) {
   memoryToggle.addEventListener('click', () => {
     memoryCollapsed = !memoryCollapsed;
-    applyMemoryCollapseState(Boolean(currentMeeting));
+    applyMemoryCollapseState();
   });
 }
 if (captureMoveForm) {
