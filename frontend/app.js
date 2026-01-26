@@ -24,6 +24,7 @@ const briefOffline = document.getElementById('brief-offline');
 const briefAttention = document.getElementById('brief-attention');
 const statusLink = document.getElementById('status-link');
 const briefBanner = document.getElementById('brief-banner');
+const briefExpand = document.getElementById('brief-expand');
 const setupBanner = document.getElementById('setup-banner');
 const setupApiBase = document.getElementById('setup-api-base');
 const setupConnect = document.getElementById('setup-connect');
@@ -43,7 +44,10 @@ const memoryCards = document.getElementById('memory-cards');
 const memoryToggle = document.getElementById('memory-toggle');
 const memoryCollapsedNote = document.getElementById('memory-collapsed-note');
 const recentCapturesSection = document.getElementById('recent-captures');
+const recentCapturesSectionWrap = document.getElementById('recent-captures-section');
 const todaySection = document.getElementById('today');
+const todaySectionWrap = document.getElementById('today-section');
+const reflectionSection = document.getElementById('reflection-section');
 const demoBadge = document.getElementById('demo-badge');
 const whyModal = document.getElementById('why-modal');
 const whyClose = document.getElementById('why-close');
@@ -89,6 +93,26 @@ let showAllCaptures = false;
 let captureToMove = null;
 let memoryCollapsed = false;
 let hasAppliedMemoryDefault = false;
+let showSecondary = false;
+
+function setSecondaryVisibility(visible) {
+  const sections = [
+    decisionLogSection,
+    decisionCooccurrenceSection,
+    relationshipMixedSection,
+    memorySection,
+    recentCapturesSectionWrap,
+    todaySectionWrap,
+    reflectionSection,
+  ];
+  sections.forEach(section => {
+    if (!section) return;
+    section.classList.toggle('hidden', !visible);
+  });
+  if (briefExpand) {
+    briefExpand.textContent = visible ? 'Show less' : 'Show more';
+  }
+}
 
 function renderCommitment(item) {
   const card = document.createElement('div');
@@ -896,6 +920,13 @@ async function loadBriefings() {
     }
   }
 
+  const hasPrimaryNarrative = Boolean(nextData.meeting) || (Array.isArray(nextData.future_relevant) && nextData.future_relevant.length);
+  if (hasPrimaryNarrative) {
+    setSecondaryVisibility(showSecondary);
+  } else {
+    setSecondaryVisibility(true);
+  }
+
   commitmentsSection.innerHTML = '';
   if (nextData.commitments && nextData.commitments.length) {
     nextData.commitments.forEach(item => commitmentsSection.appendChild(renderCommitment(item)));
@@ -1031,6 +1062,12 @@ if (recentCapturesToggle) {
     showAllCaptures = !showAllCaptures;
     recentCapturesToggle.textContent = showAllCaptures ? 'Show less' : 'View all';
     loadBriefings();
+  });
+}
+if (briefExpand) {
+  briefExpand.addEventListener('click', () => {
+    showSecondary = !showSecondary;
+    setSecondaryVisibility(showSecondary);
   });
 }
 if (memoryToggle) {
