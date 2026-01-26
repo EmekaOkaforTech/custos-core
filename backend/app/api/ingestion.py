@@ -226,18 +226,29 @@ def get_recent_decisions(
     if limit < 1 or limit > 20:
         raise HTTPException(status_code=400, detail="limit must be between 1 and 20")
     cutoff = datetime.utcnow() - timedelta(days=days)
+    fetch_limit = min(max(limit * 5, limit), 200)
     jobs = (
         db.query(IngestionJob)
         .filter(IngestionJob.status == "succeeded")
         .filter(IngestionJob.capture_type == "decision")
-        .filter((IngestionJob.error == None) | (IngestionJob.error != "deduped"))  # noqa: E711
         .filter(IngestionJob.created_at >= cutoff)
         .order_by(IngestionJob.completed_at.desc(), IngestionJob.created_at.desc())
-        .limit(limit)
+        .limit(fetch_limit)
         .all()
     )
     if not jobs:
         return []
+
+    # Deduplicate by stable key to avoid duplicate decision entries while retaining canonical record.
+    deduped = []
+    seen = set()
+    for job in jobs:
+        key = job.dedupe_key or job.source_id or job.id
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(job)
+    jobs = deduped[:limit]
 
     meeting_ids = {job.meeting_id for job in jobs}
     meetings = db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).all()
