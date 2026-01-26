@@ -712,7 +712,7 @@ async function loadBriefings() {
     const recentData = await recentResponse.json();
     renderRecentCaptures(recentData);
     renderReflections((recentData || []).filter(item => item.capture_type === 'reflection'));
-    const decisionResponse = await fetch(apiUrl('/api/ingestion/recent?limit=20'), { headers: getApiHeaders() });
+    const decisionResponse = await fetch(apiUrl('/api/ingestion/decisions?days=7&limit=5'), { headers: getApiHeaders() });
     if (decisionResponse.ok) {
       const decisionData = await decisionResponse.json();
       renderDecisionLog(decisionData);

@@ -215,6 +215,81 @@ def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[
     return results
 
 
+@router.get("/decisions", response_model=list[RecentCapture])
+def get_recent_decisions(
+    days: int = 7,
+    limit: int = 5,
+    db: Session = Depends(get_db),
+) -> list[RecentCapture]:
+    if days < 1 or days > 30:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 30")
+    if limit < 1 or limit > 20:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 20")
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    jobs = (
+        db.query(IngestionJob)
+        .filter(IngestionJob.status == "succeeded")
+        .filter(IngestionJob.capture_type == "decision")
+        .filter((IngestionJob.error == None) | (IngestionJob.error != "deduped"))  # noqa: E711
+        .filter(IngestionJob.created_at >= cutoff)
+        .order_by(IngestionJob.completed_at.desc(), IngestionJob.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    if not jobs:
+        return []
+
+    meeting_ids = {job.meeting_id for job in jobs}
+    meetings = db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).all()
+    meeting_map = {meeting.id: meeting for meeting in meetings}
+
+    people_ids = set()
+    job_people = {}
+    for job in jobs:
+        if not job.people_ids:
+            job_people[job.id] = []
+            continue
+        try:
+            ids = [pid for pid in json.loads(job.people_ids) if pid]
+        except json.JSONDecodeError:
+            ids = []
+        job_people[job.id] = ids
+        people_ids.update(ids)
+
+    people_map = {}
+    if people_ids:
+        people = db.query(Person).filter(Person.id.in_(people_ids)).all()
+        people_map = {person.id: person for person in people}
+
+    results: list[RecentCapture] = []
+    for job in jobs:
+        meeting = meeting_map.get(job.meeting_id)
+        if not meeting:
+            continue
+        captured_at = job.completed_at or job.created_at
+        people = [
+            RecentCapturePerson(id=pid, name=people_map[pid].name, type=people_map[pid].type)
+            for pid in job_people.get(job.id, [])
+            if pid in people_map
+        ]
+        results.append(
+            RecentCapture(
+                id=job.id,
+                source_id=job.source_id,
+                capture_type=job.capture_type,
+                payload=job.payload,
+                captured_at=captured_at,
+                meeting=RecentCaptureMeeting(
+                    id=meeting.id,
+                    title=meeting.title,
+                    starts_at=meeting.starts_at,
+                ),
+                people=people,
+            )
+        )
+    return results
+
+
 @router.get("/{job_id}", response_model=IngestionStatusResponse)
 def get_ingestion(job_id: str, db: Session = Depends(get_db)) -> IngestionStatusResponse:
     job = db.get(IngestionJob, job_id)
