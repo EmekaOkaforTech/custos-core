@@ -712,7 +712,13 @@ async function loadBriefings() {
     const recentData = await recentResponse.json();
     renderRecentCaptures(recentData);
     renderReflections((recentData || []).filter(item => item.capture_type === 'reflection'));
-    renderDecisionLog(recentData);
+    const decisionResponse = await fetch(apiUrl('/api/ingestion/recent?limit=50'), { headers: getApiHeaders() });
+    if (decisionResponse.ok) {
+      const decisionData = await decisionResponse.json();
+      renderDecisionLog(decisionData);
+    } else {
+      renderDecisionLog(recentData);
+    }
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.toggle('hidden', recentData.length <= 2);
       recentCapturesToggle.textContent = showAllCaptures ? 'Show less' : 'View all';
