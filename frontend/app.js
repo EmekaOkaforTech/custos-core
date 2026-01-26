@@ -34,6 +34,8 @@ const decisionLogSection = document.getElementById('decision-log-section');
 const decisionLogCards = document.getElementById('decision-log');
 const decisionCooccurrenceSection = document.getElementById('decision-cooccurrence-section');
 const decisionCooccurrenceCards = document.getElementById('decision-cooccurrence');
+const relationshipMixedSection = document.getElementById('relationship-mixed-section');
+const relationshipMixedCards = document.getElementById('relationship-mixed');
 const futureRelevantSection = document.getElementById('future-relevant-section');
 const futureRelevantList = document.getElementById('future-relevant');
 const memorySection = document.getElementById('memory-section');
@@ -261,6 +263,103 @@ function renderDecisionCooccurrence(items) {
       card.appendChild(meta);
     });
     decisionCooccurrenceCards.appendChild(card);
+  });
+}
+
+function renderMixedRelationshipSignals(items) {
+  if (!relationshipMixedSection || !relationshipMixedCards) return;
+  relationshipMixedCards.innerHTML = '';
+  if (!Array.isArray(items) || !items.length) {
+    relationshipMixedCards.innerHTML = '<div class="card"><p class="muted">No mixed relationship signals yet.</p></div>';
+    return;
+  }
+
+  const now = Date.now();
+  const cutoff = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const byPerson = new Map();
+
+  items.forEach(item => {
+    if (item.created_at && new Date(item.created_at) < cutoff) {
+      return;
+    }
+    if (!Array.isArray(item.people) || !item.people.length) {
+      return;
+    }
+    item.people.forEach(person => {
+      if (!person?.id) return;
+      const entry = byPerson.get(person.id) || {
+        person,
+        acknowledged: [],
+        pending: [],
+        lastUpdated: null,
+      };
+      const bucket = item.acknowledged ? entry.acknowledged : entry.pending;
+      bucket.push(item);
+      const stamp = item.created_at || item.source?.captured_at || item.meeting?.starts_at || null;
+      if (!entry.lastUpdated || (stamp && new Date(stamp) > new Date(entry.lastUpdated))) {
+        entry.lastUpdated = stamp;
+      }
+      byPerson.set(person.id, entry);
+    });
+  });
+
+  const mixed = Array.from(byPerson.values())
+    .filter(entry => entry.acknowledged.length && entry.pending.length)
+    .sort((a, b) => new Date(b.lastUpdated || 0) - new Date(a.lastUpdated || 0))
+    .slice(0, 3);
+
+  if (!mixed.length) {
+    relationshipMixedCards.innerHTML = '<div class="card"><p class="muted">No mixed relationship signals yet.</p></div>';
+    return;
+  }
+
+  mixed.forEach(entry => {
+    const card = document.createElement('article');
+    card.className = 'card';
+    const heading = document.createElement('h4');
+    heading.textContent = entry.person?.name || 'Relationship';
+    const meta = document.createElement('p');
+    meta.className = 'muted';
+    const updated = entry.lastUpdated ? formatDate(entry.lastUpdated) : 'updated recently';
+    meta.textContent = `Acknowledged and still pending commitments recorded · Last updated ${updated}`;
+    card.appendChild(heading);
+    card.appendChild(meta);
+
+    const ackTitle = document.createElement('p');
+    ackTitle.className = 'muted';
+    ackTitle.textContent = 'Acknowledged';
+    card.appendChild(ackTitle);
+    entry.acknowledged.slice(0, 2).forEach(item => {
+      const text = document.createElement('p');
+      const payload = item.text || 'Acknowledged commitment recorded.';
+      text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
+      const detail = document.createElement('p');
+      detail.className = 'muted';
+      const title = item.meeting?.title || 'Context';
+      const when = item.created_at ? formatDate(item.created_at) : 'recently';
+      detail.textContent = `${title} · ${when}`;
+      card.appendChild(text);
+      card.appendChild(detail);
+    });
+
+    const pendingTitle = document.createElement('p');
+    pendingTitle.className = 'muted';
+    pendingTitle.textContent = 'Still pending';
+    card.appendChild(pendingTitle);
+    entry.pending.slice(0, 2).forEach(item => {
+      const text = document.createElement('p');
+      const payload = item.text || 'Pending commitment recorded.';
+      text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
+      const detail = document.createElement('p');
+      detail.className = 'muted';
+      const title = item.meeting?.title || 'Context';
+      const when = item.created_at ? formatDate(item.created_at) : 'recently';
+      detail.textContent = `${title} · ${when}`;
+      card.appendChild(text);
+      card.appendChild(detail);
+    });
+
+    relationshipMixedCards.appendChild(card);
   });
 }
 
@@ -790,6 +889,14 @@ async function loadBriefings() {
     if (recentCapturesToggle) {
       recentCapturesToggle.classList.add('hidden');
     }
+  }
+
+  const closureResponse = await fetch(apiUrl('/api/commitments/closure'), { headers: getApiHeaders() });
+  if (closureResponse.ok) {
+    const closureData = await closureResponse.json();
+    renderMixedRelationshipSignals(closureData.items || []);
+  } else {
+    renderMixedRelationshipSignals([]);
   }
 
   const memoryResponse = await fetch(apiUrl('/api/memory/surface'), { headers: getApiHeaders() });
