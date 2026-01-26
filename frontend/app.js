@@ -110,7 +110,7 @@ function setSecondaryVisibility(visible) {
     section.classList.toggle('hidden', !visible);
   });
   if (briefExpand) {
-    briefExpand.textContent = visible ? 'Show less' : 'Show more';
+    briefExpand.textContent = visible ? 'Collapse context' : 'Expand context';
   }
 }
 
