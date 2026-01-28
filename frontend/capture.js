@@ -22,6 +22,8 @@ export function initCapture({ onSuccess } = {}) {
   const meetingDetail = document.getElementById('capture-meeting-detail');
   const meetingTitleLabel = document.getElementById('capture-meeting-title-label');
   const meetingTitleInput = document.getElementById('capture-meeting-title');
+  const meetingStartLabel = document.getElementById('capture-meeting-start-label');
+  const meetingStartInput = document.getElementById('capture-meeting-start');
   const meetingCreateRow = document.getElementById('capture-meeting-create');
   const meetingHelp = document.getElementById('capture-meeting-help');
   const advancedToggle = document.getElementById('capture-advanced-toggle');
@@ -264,6 +266,12 @@ export function initCapture({ onSuccess } = {}) {
     if (meetingCreateRow) {
       meetingCreateRow.classList.toggle('hidden', !visible);
     }
+    if (meetingStartLabel) {
+      meetingStartLabel.classList.toggle('hidden', !visible);
+    }
+    if (meetingStartInput) {
+      meetingStartInput.classList.toggle('hidden', !visible);
+    }
     if (meetingHelp) {
       meetingHelp.classList.toggle('hidden', !visible);
     }
@@ -443,11 +451,12 @@ export function initCapture({ onSuccess } = {}) {
       setStatus('Add a meeting title before saving.');
       return null;
     }
+    const startsAt = meetingStartInput?.value ? new Date(meetingStartInput.value).toISOString() : null;
     try {
       const response = await fetch(apiUrl('/api/meetings'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
-        body: JSON.stringify({ title }),
+        body: JSON.stringify({ title, starts_at: startsAt || undefined }),
       });
       if (!response.ok) {
         setStatus('Unable to create meeting. Please try again.');
