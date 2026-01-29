@@ -48,7 +48,7 @@ export function initCapture({ onSuccess } = {}) {
   const closeButton = document.getElementById('capture-close');
 
   const selectedPeople = new Map();
-  let meetingMap = { next: null, today: null };
+  let meetingMap = { next: null, today: null, upcoming: [], recent: [] };
   let peopleList = [];
   let meetingById = new Map();
   let quickMode = false;
@@ -371,7 +371,14 @@ export function initCapture({ onSuccess } = {}) {
     if (Array.isArray(meetingMap.upcoming)) {
       meetingMap.upcoming.forEach(meeting => {
         if (!meeting?.id || seen.has(meeting.id)) return;
-        dynamic.push(meeting);
+        dynamic.push({ ...meeting, _label: meeting.title || 'Upcoming context' });
+        seen.add(meeting.id);
+      });
+    }
+    if (Array.isArray(meetingMap.recent)) {
+      meetingMap.recent.forEach(meeting => {
+        if (!meeting?.id || seen.has(meeting.id)) return;
+        dynamic.push({ ...meeting, _label: `Recent: ${meeting.title || 'Context'}` });
         seen.add(meeting.id);
       });
     }
@@ -380,12 +387,27 @@ export function initCapture({ onSuccess } = {}) {
         meetingById.set(meeting.id, meeting);
         const option = document.createElement('option');
         option.value = `meeting:${meeting.id}`;
-        option.textContent = meeting.title || 'Upcoming meeting';
+        option.textContent = meeting._label || meeting.title || 'Context';
         option.dataset.dynamic = 'true';
         meetingSelect.insertBefore(option, meetingSelect.querySelector('option[value="create"]'));
       });
     }
     updateMeetingDetail();
+  }
+
+  function parseRecentMeetings(items) {
+    if (!Array.isArray(items)) return [];
+    const map = new Map();
+    items.forEach(item => {
+      const meeting = item?.meeting;
+      if (!meeting?.id) return;
+      const capturedAt = item?.captured_at ? new Date(item.captured_at).getTime() : 0;
+      const existing = map.get(meeting.id);
+      if (!existing || capturedAt > existing._lastSeen) {
+        map.set(meeting.id, { ...meeting, _lastSeen: capturedAt });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (b._lastSeen || 0) - (a._lastSeen || 0));
   }
 
   async function loadMeetings() {
@@ -401,10 +423,11 @@ export function initCapture({ onSuccess } = {}) {
       };
     }
     try {
-      const [nextResponse, todayResponse, upcomingResponse] = await Promise.all([
+      const [nextResponse, todayResponse, upcomingResponse, recentResponse] = await Promise.all([
         fetch(apiUrl('/api/briefings/next'), { headers: getApiHeaders() }),
         fetch(apiUrl('/api/briefings/today'), { headers: getApiHeaders() }),
         fetch(apiUrl('/api/meetings?range=upcoming'), { headers: getApiHeaders() }),
+        fetch(apiUrl('/api/ingestion/recent?limit=20'), { headers: getApiHeaders() }),
       ]);
       if (nextResponse.ok) {
         const nextData = await nextResponse.json();
@@ -423,6 +446,10 @@ export function initCapture({ onSuccess } = {}) {
         } else {
           meetingMap.upcoming = Array.isArray(upcomingData?.meetings) ? upcomingData.meetings : [];
         }
+      }
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        meetingMap.recent = parseRecentMeetings(recentData);
       }
     } catch (err) {
       setStatus('Unable to refresh meetings right now.');
