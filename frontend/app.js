@@ -346,43 +346,88 @@ function renderMixedRelationshipSignals(items) {
     const meta = document.createElement('p');
     meta.className = 'muted';
     const updated = entry.lastUpdated ? formatDate(entry.lastUpdated) : 'updated recently';
-    meta.textContent = `Acknowledged and still pending commitments recorded · Last updated ${updated}`;
+    meta.textContent = `Acknowledged and pending commitments recorded · Last updated ${updated}`;
     card.appendChild(heading);
     card.appendChild(meta);
 
-    const ackTitle = document.createElement('p');
-    ackTitle.className = 'muted';
-    ackTitle.textContent = 'Acknowledged';
-    card.appendChild(ackTitle);
-    entry.acknowledged.slice(0, 2).forEach(item => {
-      const text = document.createElement('p');
-      const payload = item.text || 'Acknowledged commitment recorded.';
-      text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
-      const detail = document.createElement('p');
-      detail.className = 'muted';
-      const title = item.meeting?.title || 'Context';
-      const when = item.created_at ? formatDate(item.created_at) : 'recently';
-      detail.textContent = `${title} · ${when}`;
-      card.appendChild(text);
-      card.appendChild(detail);
-    });
+    const pendingSorted = entry.pending
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    const ackSorted = entry.acknowledged
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
-    const pendingTitle = document.createElement('p');
-    pendingTitle.className = 'muted';
-    pendingTitle.textContent = 'Still pending';
-    card.appendChild(pendingTitle);
-    entry.pending.slice(0, 2).forEach(item => {
+    const summary = document.createElement('p');
+    summary.className = 'muted';
+    summary.textContent = `Pending ${pendingSorted.length} · Acknowledged ${ackSorted.length}`;
+    card.appendChild(summary);
+
+    if (pendingSorted.length) {
+      const latest = pendingSorted[0];
       const text = document.createElement('p');
-      const payload = item.text || 'Pending commitment recorded.';
+      const payload = latest.text || 'Pending commitment recorded.';
       text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
       const detail = document.createElement('p');
       detail.className = 'muted';
-      const title = item.meeting?.title || 'Context';
-      const when = item.created_at ? formatDate(item.created_at) : 'recently';
+      const title = latest.meeting?.title || 'Context';
+      const when = latest.created_at ? formatDate(latest.created_at) : 'recently';
       detail.textContent = `${title} · ${when}`;
       card.appendChild(text);
       card.appendChild(detail);
+    }
+
+    const details = document.createElement('div');
+    details.className = 'hidden';
+
+    if (pendingSorted.length) {
+      const pendingTitle = document.createElement('p');
+      pendingTitle.className = 'muted';
+      pendingTitle.textContent = 'Pending items';
+      details.appendChild(pendingTitle);
+      pendingSorted.slice(0, 2).forEach(item => {
+        const text = document.createElement('p');
+        const payload = item.text || 'Pending commitment recorded.';
+        text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
+        const detail = document.createElement('p');
+        detail.className = 'muted';
+        const title = item.meeting?.title || 'Context';
+        const when = item.created_at ? formatDate(item.created_at) : 'recently';
+        detail.textContent = `${title} · ${when}`;
+        details.appendChild(text);
+        details.appendChild(detail);
+      });
+    }
+
+    if (ackSorted.length) {
+      const ackTitle = document.createElement('p');
+      ackTitle.className = 'muted';
+      ackTitle.textContent = 'Acknowledged items';
+      details.appendChild(ackTitle);
+      ackSorted.slice(0, 2).forEach(item => {
+        const text = document.createElement('p');
+        const payload = item.text || 'Acknowledged commitment recorded.';
+        text.textContent = payload.length > 180 ? `${payload.slice(0, 177)}…` : payload;
+        const detail = document.createElement('p');
+        detail.className = 'muted';
+        const title = item.meeting?.title || 'Context';
+        const when = item.created_at ? formatDate(item.created_at) : 'recently';
+        detail.textContent = `${title} · ${when}`;
+        details.appendChild(text);
+        details.appendChild(detail);
+      });
+    }
+
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'button-link';
+    toggle.textContent = 'Show details';
+    toggle.addEventListener('click', () => {
+      const expanded = !details.classList.contains('hidden');
+      details.classList.toggle('hidden', expanded);
+      toggle.textContent = expanded ? 'Show details' : 'Hide details';
     });
+    card.appendChild(toggle);
+    card.appendChild(details);
 
     relationshipMixedCards.appendChild(card);
   });

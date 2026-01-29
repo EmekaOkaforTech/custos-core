@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -25,6 +26,33 @@ class CommitmentUpdateRequest(BaseModel):
 
 
 @router.get("/closure")
+def _people_for_sources(db: Session, source_map: dict[str, SourceRecord]) -> dict[str, list[dict]]:
+    people_by_source: dict[str, list[dict]] = {}
+    person_ids = set()
+    for source_id, source in source_map.items():
+        if source.people_ids is None:
+            continue
+        try:
+            raw = json.loads(source.people_ids)
+            ids = [pid for pid in raw if isinstance(pid, str) and pid]
+        except Exception:
+            ids = []
+        people_by_source[source_id] = ids  # may be empty to signal explicit "no people"
+        person_ids.update(ids)
+    if not person_ids:
+        return {source_id: [] for source_id in people_by_source}
+    people = (
+        db.query(Person.id, Person.name, Person.type)
+        .filter(Person.id.in_(person_ids))
+        .all()
+    )
+    people_map = {pid: {"id": pid, "name": name, "type": ptype} for pid, name, ptype in people}
+    resolved: dict[str, list[dict]] = {}
+    for source_id, ids in people_by_source.items():
+        resolved[source_id] = [people_map[pid] for pid in ids if pid in people_map]
+    return resolved
+
+
 def commitment_closure(db: Session = Depends(get_db)) -> dict:
     now = datetime.utcnow()
     commitments = (
@@ -37,6 +65,8 @@ def commitment_closure(db: Session = Depends(get_db)) -> dict:
 
     meeting_ids = {meeting.id for (_, _, meeting) in commitments}
     source_ids = {source.id for (_, source, _) in commitments}
+    source_map = {source.id: source for (_, source, _) in commitments}
+    people_by_source = _people_for_sources(db, source_map)
     participants = (
         db.query(MeetingParticipant.meeting_id, Person.id, Person.name, Person.type)
         .join(Person, MeetingParticipant.person_id == Person.id)
@@ -87,7 +117,7 @@ def commitment_closure(db: Session = Depends(get_db)) -> dict:
                     "captured_at": source.captured_at,
                     "excerpt": excerpt,
                 },
-                "people": people_by_meeting.get(meeting.id, []),
+                "people": people_by_source.get(source.id, people_by_meeting.get(meeting.id, [])),
                 "needs_attention": needs_attention,
             }
         )
@@ -111,6 +141,8 @@ def unresolved_threads(db: Session = Depends(get_db)) -> dict:
 
     meeting_ids = {meeting.id for (_, _, meeting) in commitments}
     source_ids = {source.id for (_, source, _) in commitments}
+    source_map = {source.id: source for (_, source, _) in commitments}
+    people_by_source = _people_for_sources(db, source_map)
 
     participants = (
         db.query(MeetingParticipant.meeting_id, Person.id, Person.name, Person.type)
@@ -146,7 +178,7 @@ def unresolved_threads(db: Session = Depends(get_db)) -> dict:
                     "title": meeting.title,
                     "starts_at": meeting.starts_at,
                 },
-                "people": people_by_meeting.get(meeting.id, []),
+                "people": people_by_source.get(source.id, people_by_meeting.get(meeting.id, [])),
                 "commitments": [],
                 "excerpts": [],
             },

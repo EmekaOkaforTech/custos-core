@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Text
 
 from .base import Base
 
@@ -16,4 +16,5 @@ class SourceRecord(Base):
     relevant_at = Column(DateTime, nullable=True)
     dedupe_key = Column(String, nullable=True, index=True, unique=True)
     index_in_memory = Column(Boolean, nullable=False, default=False)
+    people_ids = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
