@@ -25,7 +25,6 @@ class CommitmentUpdateRequest(BaseModel):
     relevant_by: datetime | None = None
 
 
-@router.get("/closure")
 def _people_for_sources(db: Session, source_map: dict[str, SourceRecord]) -> dict[str, list[dict]]:
     people_by_source: dict[str, list[dict]] = {}
     person_ids = set()
@@ -52,7 +51,7 @@ def _people_for_sources(db: Session, source_map: dict[str, SourceRecord]) -> dic
         resolved[source_id] = [people_map[pid] for pid in ids if pid in people_map]
     return resolved
 
-
+@router.get("/closure")
 def commitment_closure(db: Session = Depends(get_db)) -> dict:
     now = datetime.utcnow()
     commitments = (
