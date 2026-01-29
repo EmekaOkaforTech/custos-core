@@ -24,6 +24,7 @@ export function initCapture({ onSuccess } = {}) {
   const meetingTitleInput = document.getElementById('capture-meeting-title');
   const meetingStartLabel = document.getElementById('capture-meeting-start-label');
   const meetingStartInput = document.getElementById('capture-meeting-start');
+  const meetingStartHelp = document.getElementById('capture-meeting-start-help');
   const meetingCreateRow = document.getElementById('capture-meeting-create');
   const meetingHelp = document.getElementById('capture-meeting-help');
   const advancedToggle = document.getElementById('capture-advanced-toggle');
@@ -271,6 +272,9 @@ export function initCapture({ onSuccess } = {}) {
     }
     if (meetingStartInput) {
       meetingStartInput.classList.toggle('hidden', !visible);
+    }
+    if (meetingStartHelp) {
+      meetingStartHelp.classList.toggle('hidden', !visible);
     }
     if (meetingHelp) {
       meetingHelp.classList.toggle('hidden', !visible);
