@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f7f2ea"/>
+      <stop offset="100%" style="stop-color:#f2ede5"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle for maskable safe zone -->
+  <circle cx="96" cy="96" r="96" fill="url(#bg-grad)"/>
+  <!-- Inner content area (80% safe zone = 76.8px radius from center) -->
+  <g transform="translate(96, 96)">
+    <!-- Shield/guardian symbol representing "Custos" (Latin for guardian) -->
+    <path d="M0 -52 L40 -32 L40 12 C40 36 20 52 0 60 C-20 52 -40 36 -40 12 L-40 -32 Z"
+          fill="none"
+          stroke="#b08f6a"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+    <!-- Inner checkmark representing completion/briefing ready -->
+    <path d="M-16 4 L-4 16 L20 -12"
+          fill="none"
+          stroke="#6d685f"
+          stroke-width="4"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+    <!-- Three horizontal lines representing context/notes -->
+    <line x1="-20" y1="-24" x2="20" y2="-24" stroke="#b08f6a" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+    <line x1="-16" y1="-14" x2="16" y2="-14" stroke="#b08f6a" stroke-width="3" stroke-linecap="round" opacity="0.4"/>
+  </g>
+</svg>

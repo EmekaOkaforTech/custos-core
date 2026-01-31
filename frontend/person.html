@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Custos — Person Profile</title>
+  <meta name="description" content="Custos — calm, local-first meeting briefings and context." />
+  <meta name="theme-color" content="#f5f1ea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Custos" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand">
+      <h1>Custos</h1>
+      <span class="offline-badge hidden" id="offline-badge">Offline</span>
+    </div>
+    <nav class="global-nav" aria-label="Primary">
+      <a class="nav-link" href="index.html">Briefing</a>
+      <a class="nav-link" href="people.html">People</a>
+      <a class="nav-link" href="status.html">Status</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="brief-header">
+      <div class="brief-title" id="person-name">Loading...</div>
+      <div class="brief-meta">
+        <a href="people.html" class="button-link">Back to People</a>
+      </div>
+    </section>
+
+    <section class="card profile-card" id="profile-card">
+      <div class="profile-header">
+        <div class="profile-info">
+          <p id="person-type" class="profile-type"></p>
+          <p id="person-role" class="profile-role muted"></p>
+          <p id="last-interaction" class="muted"></p>
+        </div>
+        <button class="button-link" id="edit-role-btn">Edit role</button>
+      </div>
+
+      <div class="profile-section">
+        <h3>Tags</h3>
+        <div class="tag-list" id="person-tags"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h3>Recent Notes</h3>
+        <button class="button-link" id="add-note-btn">Add note</button>
+      </div>
+      <div class="cards" id="recent-notes"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <h3>Timeline</h3>
+        <span id="timeline-stats" class="muted"></span>
+      </div>
+      <div class="cards" id="timeline-preview"></div>
+    </section>
+  </main>
+
+  <!-- Edit Role Modal -->
+  <div id="role-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-role-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="role-title">
+      <div class="modal-header">
+        <h2 id="role-title">Edit Role</h2>
+        <button class="icon-button" id="close-role-modal" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="role-input">Role</label>
+          <input type="text" id="role-input" placeholder="e.g., client, family, colleague" />
+          <p class="muted">Describe this person's relationship to you.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button-primary" id="submit-role">Save Role</button>
+        <button class="button-link" id="cancel-role">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Tag Modal -->
+  <div id="tag-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-tag-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="tag-title">
+      <div class="modal-header">
+        <h2 id="tag-title">Add Tag</h2>
+        <button class="icon-button" id="close-tag-modal" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="tag-input">Tag</label>
+          <input type="text" id="tag-input" placeholder="e.g., vip, priority, follow-up" />
+          <p class="muted">Tags help you organize and filter people.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button-primary" id="submit-tag">Add Tag</button>
+        <button class="button-link" id="cancel-tag">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Note Modal -->
+  <div id="note-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-note-close></div>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="note-title">
+      <div class="modal-header">
+        <h2 id="note-title">Add Note</h2>
+        <button class="icon-button" id="close-note-modal" type="button" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="note-type">Type</label>
+          <select id="note-type"></select>
+        </div>
+        <div class="form-group">
+          <label for="note-content">Content</label>
+          <textarea id="note-content" rows="6" placeholder="Enter your note..."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button-primary" id="submit-note">Save Note</button>
+        <button class="button-link" id="cancel-note">Cancel</button>
+      </div>
+      <p class="muted" id="note-status"></p>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module" src="person.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

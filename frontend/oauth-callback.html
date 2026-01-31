@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Custos — OAuth Callback</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .callback-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      text-align: center;
+      padding: var(--space-4);
+    }
+    .callback-status {
+      font-size: var(--text-lg);
+      margin-bottom: var(--space-2);
+    }
+    .callback-message {
+      color: var(--muted);
+      max-width: 400px;
+    }
+    .callback-error {
+      color: var(--error);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--line);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: var(--space-3);
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="callback-container">
+    <div class="spinner" id="spinner"></div>
+    <div class="callback-status" id="status">Processing authorization...</div>
+    <p class="callback-message" id="message">Please wait while we complete your calendar connection.</p>
+    <button class="button-link hidden" id="close-button" onclick="window.close()">Close this window</button>
+  </div>
+
+  <script src="config.js"></script>
+  <script type="module">
+    import { apiUrl, getApiHeaders } from './ui-state.js';
+
+    const statusEl = document.getElementById('status');
+    const messageEl = document.getElementById('message');
+    const spinnerEl = document.getElementById('spinner');
+    const closeButton = document.getElementById('close-button');
+
+    function showError(title, message) {
+      spinnerEl.classList.add('hidden');
+      statusEl.textContent = title;
+      statusEl.classList.add('callback-error');
+      messageEl.textContent = message;
+      closeButton.classList.remove('hidden');
+    }
+
+    function showSuccess(message) {
+      spinnerEl.classList.add('hidden');
+      statusEl.textContent = 'Connected!';
+      messageEl.textContent = message;
+      closeButton.classList.remove('hidden');
+    }
+
+    async function handleCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const error = params.get('error');
+      const errorDesc = params.get('error_description');
+
+      // Check for OAuth error from provider
+      if (error) {
+        showError('Authorization Failed', errorDesc || `OAuth error: ${error}`);
+        // Notify parent window if in popup
+        if (window.opener) {
+          window.opener.postMessage({ type: 'oauth-error', error, errorDesc }, window.location.origin);
+        }
+        return;
+      }
+
+      // Validate required parameters
+      if (!code || !state) {
+        showError('Invalid Callback', 'Missing authorization code or state parameter.');
+        return;
+      }
+
+      // Exchange code for tokens
+      try {
+        const response = await fetch(apiUrl('/api/calendar/oauth/callback'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
+          body: JSON.stringify({ code, state }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          showError('Connection Failed', data.detail || 'Failed to complete authorization.');
+          if (window.opener) {
+            window.opener.postMessage({ type: 'oauth-error', error: data.detail }, window.location.origin);
+          }
+          return;
+        }
+
+        const data = await response.json();
+        showSuccess(`Your ${data.provider} calendar is now connected. You can close this window.`);
+
+        // Notify parent window
+        if (window.opener) {
+          window.opener.postMessage({
+            type: 'oauth-success',
+            provider: data.provider,
+            connected: data.connected,
+          }, window.location.origin);
+        }
+
+        // Auto-close after a short delay
+        setTimeout(() => {
+          if (window.opener) {
+            window.close();
+          }
+        }, 2000);
+
+      } catch (err) {
+        showError('Network Error', 'Could not connect to server. Please try again.');
+        if (window.opener) {
+          window.opener.postMessage({ type: 'oauth-error', error: 'Network error' }, window.location.origin);
+        }
+      }
+    }
+
+    handleCallback();
+  </script>
+</body>
+</html>
