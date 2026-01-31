@@ -20,6 +20,7 @@ from app.api.audio import router as audio_router
 from app.db import init_db
 from app.settings import get_cors_origins
 from app.ops.sync_scheduler import start_sync_scheduler
+from app.ops.backup_scheduler import start_backup_scheduler
 from app.ops.inference_queue import start_inference_queue
 
 app = FastAPI(title="Custos Core API")
@@ -54,4 +55,5 @@ app.include_router(audio_router)
 def startup() -> None:
     init_db()
     start_sync_scheduler()
+    start_backup_scheduler()
     start_inference_queue()

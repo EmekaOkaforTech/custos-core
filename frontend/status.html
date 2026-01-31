@@ -187,9 +187,29 @@
 </section>
 
     
-    <section class="section" id="topology-section">
-      <h3>Network topology</h3>
-      <div class="cards" id="topology-cards"></div>
+    <section class="card" id="network-settings-card">
+      <h3>Network discovery</h3>
+      <p class="muted" id="network-settings-summary">Scanning local services with mDNS.</p>
+      <form class="filters" id="network-settings-form">
+        <label class="checkbox-row">
+          <input id="network-discovery-enabled" type="checkbox" />
+          Enable local discovery (mDNS)
+        </label>
+        <label for="network-scan-interval">Scan interval (minutes)</label>
+        <input id="network-scan-interval" name="scan_interval_minutes" type="number" min="1" max="120" />
+        <div class="manual-services">
+          <div class="section-header">
+            <h4>Manual services</h4>
+            <button type="button" class="button-link" id="network-add-service">Add service</button>
+          </div>
+          <div id="network-manual-services"></div>
+        </div>
+        <div class="tag-input">
+          <button type="submit">Save</button>
+          <button type="button" class="button-link" id="network-scan-now">Scan now</button>
+        </div>
+        <p class="muted" id="network-settings-status"></p>
+      </form>
     </section>
 
 <section class="section" id="closure-section">

@@ -1810,3 +1810,27 @@ body {
     break-inside: avoid;
   }
 }
+
+
+.manual-services {
+  margin-top: 12px;
+}
+
+.manual-service-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.8fr 1.4fr 0.8fr auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.manual-service-row input,
+.manual-service-row select {
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .manual-service-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

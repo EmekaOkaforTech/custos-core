@@ -33,6 +33,14 @@ const statusRecovery = document.getElementById('status-recovery');
 const statusErrors = document.getElementById('status-errors');
 const acceleratorStatus = document.getElementById('accelerator-status');
 const acceleratorDetail = document.getElementById('accelerator-detail');
+const networkSettingsForm = document.getElementById("network-settings-form");
+const networkDiscoveryEnabled = document.getElementById("network-discovery-enabled");
+const networkScanInterval = document.getElementById("network-scan-interval");
+const networkManualServices = document.getElementById("network-manual-services");
+const networkAddService = document.getElementById("network-add-service");
+const networkScanNow = document.getElementById("network-scan-now");
+const networkSettingsStatus = document.getElementById("network-settings-status");
+const networkSettingsSummary = document.getElementById("network-settings-summary");
 const backupAction = document.getElementById('backup-action');
 const apiKeyForm = document.getElementById('api-key-form');
 const apiKeyInput = document.getElementById('api-key-input');
@@ -853,6 +861,112 @@ async function loadSyncSettings() {
   }
 }
 
+
+function buildManualServiceRow(data = {}) {
+  if (!networkManualServices) return null;
+  const row = document.createElement("div");
+  row.className = "manual-service-row";
+
+  const name = document.createElement("input");
+  name.type = "text";
+  name.placeholder = "Name";
+  name.value = data.name || "";
+
+  const type = document.createElement("select");
+  ["nas", "inference", "http", "other"].forEach(optionValue => {
+    const opt = document.createElement("option");
+    opt.value = optionValue;
+    opt.textContent = optionValue;
+    if ((data.type || "").toLowerCase() == optionValue) {
+      opt.selected = true;
+    }
+    type.appendChild(opt);
+  });
+
+  const protocol = document.createElement("select");
+  ["http", "smb", "nfs"].forEach(optionValue => {
+    const opt = document.createElement("option");
+    opt.value = optionValue;
+    opt.textContent = optionValue;
+    if ((data.protocol || "").toLowerCase() == optionValue) {
+      opt.selected = true;
+    }
+    protocol.appendChild(opt);
+  });
+
+  const host = document.createElement("input");
+  host.type = "text";
+  host.placeholder = "Host";
+  host.value = data.host || "";
+
+  const port = document.createElement("input");
+  port.type = "number";
+  port.min = "1";
+  port.max = "65535";
+  port.placeholder = "Port";
+  port.value = data.port ? String(data.port) : "";
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "button-link";
+  remove.textContent = "Remove";
+  remove.addEventListener("click", () => row.remove());
+
+  row.appendChild(name);
+  row.appendChild(type);
+  row.appendChild(protocol);
+  row.appendChild(host);
+  row.appendChild(port);
+  row.appendChild(remove);
+  networkManualServices.appendChild(row);
+  return row;
+}
+
+function readManualServices() {
+  if (!networkManualServices) return [];
+  const rows = Array.from(networkManualServices.querySelectorAll(".manual-service-row"));
+  const services = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll("input, select");
+    const name = inputs[0]?.value?.trim() || "";
+    const type = inputs[1]?.value || "";
+    const protocol = inputs[2]?.value || "";
+    const host = inputs[3]?.value?.trim() || "";
+    const portValue = inputs[4]?.value ? Number(inputs[4].value) : null;
+    if (!host || !portValue) return;
+    services.push({
+      name: name,
+      type: type,
+      protocol: protocol,
+      host: host,
+      port: portValue,
+    });
+  });
+  return services;
+}
+
+async function loadNetworkSettings() {
+  if (!networkSettingsForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/network/settings"), { headers: getApiHeaders() });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (networkDiscoveryEnabled) networkDiscoveryEnabled.checked = Boolean(data.discovery_enabled);
+    if (networkScanInterval) networkScanInterval.value = data.scan_interval_minutes || 15;
+    if (networkSettingsSummary) {
+      const lastScan = formatDate(data.last_scan_at);
+      networkSettingsSummary.textContent = data.discovery_enabled
+        ? "Scanning local services · Last scan " + lastScan
+        : "Discovery disabled";
+    }
+    if (networkManualServices) networkManualServices.innerHTML = "";
+    const manual = Array.isArray(data.manual_services) ? data.manual_services : [];
+    manual.forEach(item => buildManualServiceRow(item));
+  } catch (err) {
+    if (networkSettingsSummary) networkSettingsSummary.textContent = "Unable to load network settings.";
+  }
+}
+
 async function loadTopology() {
   if (!topologyCards) return;
   try {
@@ -1007,6 +1121,75 @@ loadDecisionSurfaces();
 loadContextGaps();
 loadRelationshipSignals();
 loadTopology();
+loadNetworkSettings();
+if (networkAddService) {
+  networkAddService.addEventListener('click', () => buildManualServiceRow({}));
+}
+
+if (networkSettingsForm) {
+  networkSettingsForm.addEventListener('submit', async event => {
+    event.preventDefault();
+    if (!getApiBase() || !isSetupComplete()) {
+      if (networkSettingsStatus) {
+        networkSettingsStatus.textContent = 'Connect to your backend before saving.';
+      }
+      return;
+    }
+    if (networkSettingsStatus) {
+      networkSettingsStatus.textContent = 'Saving network settings…';
+    }
+    const payload = {
+      discovery_enabled: networkDiscoveryEnabled ? networkDiscoveryEnabled.checked : true,
+      scan_interval_minutes: networkScanInterval ? Number(networkScanInterval.value || 15) : 15,
+      manual_services: readManualServices(),
+    };
+    const response = await fetch(apiUrl('/api/network/settings'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      if (networkSettingsStatus) {
+        networkSettingsStatus.textContent = 'Unable to save network settings.';
+      }
+      return;
+    }
+    if (networkSettingsStatus) {
+      networkSettingsStatus.textContent = 'Network settings saved.';
+    }
+    loadNetworkSettings();
+    loadTopology();
+  });
+}
+
+if (networkScanNow) {
+  networkScanNow.addEventListener('click', async () => {
+    if (!getApiBase() || !isSetupComplete()) {
+      if (networkSettingsStatus) {
+        networkSettingsStatus.textContent = 'Connect to your backend before scanning.';
+      }
+      return;
+    }
+    if (networkSettingsStatus) {
+      networkSettingsStatus.textContent = 'Scanning local services…';
+    }
+    const response = await fetch(apiUrl('/api/network/services'), { headers: getApiHeaders() });
+    if (!response.ok) {
+      if (networkSettingsStatus) {
+        networkSettingsStatus.textContent = 'Network scan failed.';
+      }
+      return;
+    }
+    const data = await response.json();
+    const count = Array.isArray(data.services) ? data.services.length : 0;
+    if (networkSettingsStatus) {
+      networkSettingsStatus.textContent = 'Scan complete. ' + count + ' services detected.';
+    }
+    loadNetworkSettings();
+    loadTopology();
+  });
+}
+
 
 if (closureGroupMeeting) {
   closureGroupMeeting.addEventListener('click', () => {
