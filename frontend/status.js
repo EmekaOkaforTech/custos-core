@@ -851,6 +851,36 @@ async function loadSyncSettings() {
   }
 }
 
+async function loadTopology() {
+  if (!topologyCards) return;
+  try {
+    const response = await fetch(apiUrl("/api/network/topology"), { headers: getApiHeaders() });
+    if (!response.ok) {
+      topologyCards.innerHTML = "";
+      return;
+    }
+    const data = await response.json();
+    const counts = data.counts || {};
+    const summary = "NAS " + (counts.nas || 0) + " · Inference " + (counts.inference || 0) + " · HTTP " + (counts.http || 0) + " · Other " + (counts.other || 0);
+    const nasLabel = data.nas_backup_enabled ? "enabled" : "disabled";
+    const syncLabel = data.sync_enabled ? "enabled" : "disabled";
+    const infLabel = data.inference_enabled ? "enabled" : "disabled";
+    topologyCards.innerHTML = ""
+      + "<div class=\"card\">"
+      + "<h4>Discovered services</h4>"
+      + "<p class=\"muted\">Last scan " + formatDate(data.last_scan) + " · " + summary + "</p>"
+      + "</div>"
+      + "<div class=\"card\">"
+      + "<h4>Configured resources</h4>"
+      + "<p class=\"muted\">NAS backup: " + nasLabel + "</p>"
+      + "<p class=\"muted\">Home sync: " + syncLabel + "</p>"
+      + "<p class=\"muted\">Inference: " + infLabel + "</p>"
+      + "</div>";
+  } catch (err) {
+    topologyCards.innerHTML = "";
+  }
+}
+
 async function loadStatus() {
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
@@ -958,6 +988,7 @@ loadThreads();
 loadDecisionSurfaces();
 loadContextGaps();
 loadRelationshipSignals();
+loadTopology();
 
 if (closureGroupMeeting) {
   closureGroupMeeting.addEventListener('click', () => {

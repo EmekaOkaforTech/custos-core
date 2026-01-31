@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.network_settings import NetworkSettings
+from app.models.nas_backup_target import NasBackupTarget
+from app.models.nas_sync_settings import NasSyncSettings
 from app.network.services import scan_services
 
 router = APIRouter(prefix="/api/network", tags=["network"])
@@ -67,4 +69,27 @@ def set_settings(payload: NetworkSettingsPayload, db: Session = Depends(get_db))
         "manual_services": [svc.model_dump() for svc in payload.manual_services],
         "discovery_enabled": settings.discovery_enabled,
         "scan_interval_minutes": settings.scan_interval_minutes,
+    }
+
+
+@router.get("/topology")
+def get_topology(db: Session = Depends(get_db)) -> dict[str, Any]:
+    result = scan_services(db)
+    services = result.get("services", [])
+    counts = {"nas": 0, "inference": 0, "http": 0, "other": 0}
+    for svc in services:
+        svc_type = svc.get("type") or "other"
+        counts[svc_type] = counts.get(svc_type, 0) + 1
+    settings = db.query(NetworkSettings).first()
+    nas_backup = db.query(NasBackupTarget).first()
+    sync = db.query(NasSyncSettings).first()
+    return {
+        "last_scan": result.get("last_scan"),
+        "discovery_enabled": settings.discovery_enabled if settings else False,
+        "services": services,
+        "counts": counts,
+        "nas_backup_enabled": bool(nas_backup and nas_backup.enabled),
+        "sync_enabled": bool(sync and sync.enabled),
+        "inference_enabled": bool(settings and settings.inference_enabled),
+        "inference_url": settings.inference_url if settings else None,
     }
