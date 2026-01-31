@@ -802,6 +802,31 @@ async function loadNasTarget() {
   }
 }
 
+function updateInferenceStatus(data) {
+  if (!inferenceStatus) return;
+  const status = data?.inference_status || "disabled";
+  const lastChecked = formatDate(data?.inference_last_checked);
+  if (!data?.inference_enabled) {
+    inferenceStatus.textContent = "Inference delegation not configured.";
+    return;
+  }
+  inferenceStatus.textContent = "Inference server: " + status + " (last checked " + lastChecked + ")";
+}
+
+async function loadInferenceSettings() {
+  if (!inferenceForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/inference/settings"), { headers: getApiHeaders() });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (inferenceUrl) inferenceUrl.value = data.inference_url || "";
+    if (inferenceEnabled) inferenceEnabled.checked = Boolean(data.inference_enabled);
+    updateInferenceStatus(data);
+  } catch (err) {
+    // ignore
+  }
+}
+
 async function loadStatus() {
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
