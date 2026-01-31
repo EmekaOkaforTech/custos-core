@@ -91,6 +91,38 @@
       <p class="muted" id="calendar-import-status"></p>
     </section>
 
+
+    <section class="card" id="email-card">
+      <h3>Email ingestion</h3>
+      <p class="muted" id="email-status">Email polling not configured.</p>
+      <form class="filters" id="email-form">
+        <label for="email-host">IMAP host</label>
+        <input id="email-host" name="host" placeholder="mail.example.com" />
+        <label for="email-port">Port</label>
+        <input id="email-port" name="port" type="number" min="1" max="65535" />
+        <label for="email-username">Username</label>
+        <input id="email-username" name="username" />
+        <label for="email-password">Password</label>
+        <input id="email-password" name="password" type="password" />
+        <label class="checkbox-row">
+          <input id="email-use-tls" type="checkbox" />
+          Use TLS
+        </label>
+        <label for="email-interval">Poll interval (minutes)</label>
+        <input id="email-interval" name="poll_interval_minutes" type="number" min="5" max="120" />
+        <label class="checkbox-row">
+          <input id="email-enabled" type="checkbox" />
+          Enable email polling
+        </label>
+        <div class="tag-input">
+          <button type="submit">Save</button>
+          <button type="button" class="button-link" id="email-test">Test connection</button>
+          <button type="button" class="button-link" id="email-poll">Poll now</button>
+        </div>
+        <p class="muted" id="email-message"></p>
+      </form>
+    </section>
+
     <section class="card hidden" id="pwa-install-card">
       <h3>Install App</h3>
       <p class="muted">Install Custos on your device for quick access and offline support.</p>

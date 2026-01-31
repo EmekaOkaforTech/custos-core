@@ -15,6 +15,8 @@ from .risk_flag import RiskFlag
 from .source_record import SourceRecord
 from .model_artifact import ModelArtifact
 from .inference_task import InferenceTask
+from .email_connection import EmailConnection
+from .email_message import EmailMessage
 
 __all__ = [
     'AuditLog',
@@ -34,4 +36,6 @@ __all__ = [
     'SourceRecord',
     'ModelArtifact',
     'InferenceTask',
+    'EmailConnection',
+    'EmailMessage',
 ]

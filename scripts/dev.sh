@@ -23,6 +23,9 @@ cleanup() {
   if [[ -n "${CALENDAR_PID:-}" ]]; then
     kill "$CALENDAR_PID" >/dev/null 2>&1 || true
   fi
+  if [[ -n "${EMAIL_PID:-}" ]]; then
+    kill "$EMAIL_PID" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -34,11 +37,14 @@ BACKEND_PID=$!
 python -m http.server 5173 --directory "$FRONTEND_DIR" &
 FRONTEND_PID=$!
 
-python -m app.ingestion.worker 2>&1 | sed 's/^/worker: /' &
+python -m app.ingestion.worker 2>&1 | sed "s/^/worker: /" &
 WORKER_PID=$!
 
-python -m app.calendar.runner 2>&1 | sed 's/^/calendar: /' &
+python -m app.calendar.runner 2>&1 | sed "s/^/calendar: /" &
 CALENDAR_PID=$!
+
+python -m app.email.runner 2>&1 | sed "s/^/email: /" &
+EMAIL_PID=$!
 
 echo "Backend: http://$HOST:8000"
 echo "Frontend: http://localhost:5173"

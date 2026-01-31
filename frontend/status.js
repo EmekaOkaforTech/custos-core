@@ -47,6 +47,18 @@ const summarizationProvider = document.getElementById("summarization-provider");
 const summarizationModel = document.getElementById("summarization-model");
 const summarizationMaxTokens = document.getElementById("summarization-max-tokens");
 const summarizationStatus = document.getElementById("summarization-status");
+const emailForm = document.getElementById("email-form");
+const emailStatus = document.getElementById("email-status");
+const emailHost = document.getElementById("email-host");
+const emailPort = document.getElementById("email-port");
+const emailUsername = document.getElementById("email-username");
+const emailPassword = document.getElementById("email-password");
+const emailUseTls = document.getElementById("email-use-tls");
+const emailInterval = document.getElementById("email-interval");
+const emailEnabled = document.getElementById("email-enabled");
+const emailTest = document.getElementById("email-test");
+const emailPoll = document.getElementById("email-poll");
+const emailMessage = document.getElementById("email-message");
 
 const backupAction = document.getElementById('backup-action');
 const apiKeyForm = document.getElementById('api-key-form');
@@ -1005,6 +1017,37 @@ function updateSummarizationStatus(data) {
   const tokenLabel = data.max_input_tokens ? " · Max " + data.max_input_tokens + " tokens" : "";
   summarizationStatus.textContent = "Summaries enabled · " + providerLabel + modelLabel + tokenLabel;
 }
+
+async function loadEmailConnection() {
+  if (!emailForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/email/connection"), { headers: getApiHeaders() });
+    if (!response.ok) {
+      if (emailStatus) emailStatus.textContent = "Email connection unavailable.";
+      return;
+    }
+    const data = await response.json();
+    if (emailHost) emailHost.value = data.host || "";
+    if (emailPort) emailPort.value = data.port || 993;
+    if (emailUsername) emailUsername.value = data.username || "";
+    if (emailUseTls) emailUseTls.checked = data.use_tls !== false;
+    if (emailInterval) emailInterval.value = data.poll_interval_minutes || 30;
+    if (emailEnabled) emailEnabled.checked = Boolean(data.enabled);
+    if (emailStatus) {
+      if (!data.configured) {
+        emailStatus.textContent = "Email polling not configured.";
+      } else if (data.enabled) {
+        const last = data.last_success ? formatDate(data.last_success) : "never";
+        emailStatus.textContent = "Email polling enabled · Last success " + last;
+      } else {
+        emailStatus.textContent = "Email polling disabled.";
+      }
+    }
+  } catch (err) {
+    if (emailStatus) emailStatus.textContent = "Unable to load email settings.";
+  }
+}
+
 async function loadTopology() {
   if (!topologyCards) return;
   try {
@@ -1110,6 +1153,7 @@ async function loadStatus() {
 
   backupAction.classList.toggle('hidden', !backupFailed);
   updateCalendarStatus(statusData, connectionData);
+  loadEmailConnection();
 }
 
 loadStatus().catch(() => {
@@ -1163,6 +1207,92 @@ loadNetworkSettings();
 loadSummarizationSettings();
 if (networkAddService) {
   networkAddService.addEventListener('click', () => buildManualServiceRow({}));
+}
+
+if (emailForm) {
+  emailForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!getApiBase() || !isSetupComplete()) {
+      if (emailMessage) emailMessage.textContent = "Connect to your backend before saving.";
+      return;
+    }
+    if (emailMessage) emailMessage.textContent = "Saving email settings…";
+    const payload = {
+      host: emailHost ? emailHost.value.trim() : "",
+      port: emailPort && emailPort.value ? Number(emailPort.value) : 993,
+      username: emailUsername ? emailUsername.value.trim() : "",
+      password: emailPassword ? emailPassword.value : null,
+      use_tls: emailUseTls ? emailUseTls.checked : true,
+      enabled: emailEnabled ? emailEnabled.checked : false,
+      poll_interval_minutes: emailInterval && emailInterval.value ? Number(emailInterval.value) : 30,
+    };
+    try {
+      const response = await fetch(apiUrl("/api/email/connection"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getApiHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        if (emailMessage) emailMessage.textContent = "Unable to save email settings.";
+        return;
+      }
+      if (emailMessage) emailMessage.textContent = "Email settings saved.";
+      loadEmailConnection();
+    } catch (err) {
+      if (emailMessage) emailMessage.textContent = "Unable to save email settings.";
+    }
+  });
+}
+
+if (emailTest) {
+  emailTest.addEventListener("click", async () => {
+    if (emailMessage) emailMessage.textContent = "Testing email connection…";
+    const payload = {
+      host: emailHost ? emailHost.value.trim() : "",
+      port: emailPort && emailPort.value ? Number(emailPort.value) : 993,
+      username: emailUsername ? emailUsername.value.trim() : "",
+      password: emailPassword ? emailPassword.value : null,
+      use_tls: emailUseTls ? emailUseTls.checked : true,
+      enabled: emailEnabled ? emailEnabled.checked : false,
+      poll_interval_minutes: emailInterval && emailInterval.value ? Number(emailInterval.value) : 30,
+    };
+    try {
+      const response = await fetch(apiUrl("/api/email/connection/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getApiHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const detail = error.detail || "Unable to connect.";
+        if (emailMessage) emailMessage.textContent = detail;
+        return;
+      }
+      if (emailMessage) emailMessage.textContent = "Email connection ok.";
+    } catch (err) {
+      if (emailMessage) emailMessage.textContent = "Unable to test email connection.";
+    }
+  });
+}
+
+if (emailPoll) {
+  emailPoll.addEventListener("click", async () => {
+    if (emailMessage) emailMessage.textContent = "Polling inbox…";
+    try {
+      const response = await fetch(apiUrl("/api/email/poll"), {
+        method: "POST",
+        headers: getApiHeaders(),
+      });
+      if (!response.ok) {
+        if (emailMessage) emailMessage.textContent = "Unable to poll inbox.";
+        return;
+      }
+      if (emailMessage) emailMessage.textContent = "Inbox polled.";
+      loadEmailConnection();
+    } catch (err) {
+      if (emailMessage) emailMessage.textContent = "Unable to poll inbox.";
+    }
+  });
 }
 
 if (summarizationForm) {

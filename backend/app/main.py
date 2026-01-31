@@ -7,6 +7,7 @@ from app.api.admin import router as admin_router
 from app.api.ingestion import router as ingestion_router
 from app.api.meetings import router as meetings_router
 from app.api.calendar import router as calendar_router
+from app.api.email import router as email_router
 from app.api.status import router as status_router
 from app.api.summarization import router as summarization_router
 from app.api.backup import router as backup_router
@@ -39,6 +40,7 @@ app.include_router(briefings_router)
 app.include_router(commitments_router)
 app.include_router(meetings_router)
 app.include_router(calendar_router)
+app.include_router(email_router)
 app.include_router(status_router)
 app.include_router(summarization_router)
 app.include_router(backup_router)
