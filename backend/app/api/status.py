@@ -50,6 +50,7 @@ def status(db: Session = Depends(get_db)) -> dict:
         .scalar()
     )
     calendar_status = read_calendar_status()
+    accelerator_status = get_accelerator_status()
     calendar_error = calendar_status.get("last_error")
     health = "attention" if error_count or calendar_error else "healthy"
     backup_status = _load_status()

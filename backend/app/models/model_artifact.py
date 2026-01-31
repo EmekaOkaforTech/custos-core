@@ -1,11 +1,11 @@
 from datetime import datetime
 from sqlalchemy import Column, DateTime, String
 
-from app.db import Base
+from app.models.base import Base
 
 
 class ModelArtifact(Base):
-    __tablename__ = model_artifact
+    __tablename__ = "model_artifact"
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
