@@ -59,6 +59,21 @@ const emailEnabled = document.getElementById("email-enabled");
 const emailTest = document.getElementById("email-test");
 const emailPoll = document.getElementById("email-poll");
 const emailMessage = document.getElementById("email-message");
+const chatSlackForm = document.getElementById("chat-slack-form");
+const chatSlackSecret = document.getElementById("chat-slack-secret");
+const chatSlackEnabled = document.getElementById("chat-slack-enabled");
+const chatSlackStatus = document.getElementById("chat-slack-status");
+const chatSlackUrl = document.getElementById("chat-slack-url");
+const chatTeamsForm = document.getElementById("chat-teams-form");
+const chatTeamsSecret = document.getElementById("chat-teams-secret");
+const chatTeamsEnabled = document.getElementById("chat-teams-enabled");
+const chatTeamsStatus = document.getElementById("chat-teams-status");
+const chatTeamsUrl = document.getElementById("chat-teams-url");
+const chatDiscordForm = document.getElementById("chat-discord-form");
+const chatDiscordSecret = document.getElementById("chat-discord-secret");
+const chatDiscordEnabled = document.getElementById("chat-discord-enabled");
+const chatDiscordStatus = document.getElementById("chat-discord-status");
+const chatDiscordUrl = document.getElementById("chat-discord-url");
 
 const backupAction = document.getElementById('backup-action');
 const apiKeyForm = document.getElementById('api-key-form');
@@ -1018,6 +1033,41 @@ function updateSummarizationStatus(data) {
   summarizationStatus.textContent = "Summaries enabled · " + providerLabel + modelLabel + tokenLabel;
 }
 
+function setChatUrl(el, provider) {
+  if (!el) return;
+  const base = getApiBase();
+  el.textContent = base ? `${base}/api/integrations/chat/webhook/${provider}` : "Connect to backend to view";
+}
+
+async function loadChatProvider(provider, statusEl, enabledEl, urlEl) {
+  if (!statusEl) return;
+  setChatUrl(urlEl, provider);
+  try {
+    const response = await fetch(apiUrl(`/api/integrations/chat/connection/${provider}`), { headers: getApiHeaders() });
+    if (!response.ok) {
+      statusEl.textContent = `${provider} ingestion unavailable.`;
+      return;
+    }
+    const data = await response.json();
+    if (enabledEl) enabledEl.checked = Boolean(data.enabled);
+    if (!data.configured) {
+      statusEl.textContent = `${provider} ingestion not configured.`;
+    } else if (data.enabled) {
+      statusEl.textContent = `${provider} ingestion enabled.`;
+    } else {
+      statusEl.textContent = `${provider} ingestion disabled.`;
+    }
+  } catch (err) {
+    statusEl.textContent = `${provider} ingestion unavailable.`;
+  }
+}
+
+async function loadChatProviders() {
+  await loadChatProvider("slack", chatSlackStatus, chatSlackEnabled, chatSlackUrl);
+  await loadChatProvider("teams", chatTeamsStatus, chatTeamsEnabled, chatTeamsUrl);
+  await loadChatProvider("discord", chatDiscordStatus, chatDiscordEnabled, chatDiscordUrl);
+}
+
 async function loadEmailConnection() {
   if (!emailForm) return;
   try {
@@ -1205,6 +1255,7 @@ loadRelationshipSignals();
 loadTopology();
 loadNetworkSettings();
 loadSummarizationSettings();
+loadChatProviders();
 if (networkAddService) {
   networkAddService.addEventListener('click', () => buildManualServiceRow({}));
 }
@@ -1272,6 +1323,63 @@ if (emailTest) {
     } catch (err) {
       if (emailMessage) emailMessage.textContent = "Unable to test email connection.";
     }
+  });
+}
+
+if (chatSlackForm) {
+  chatSlackForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      secret: chatSlackSecret ? chatSlackSecret.value.trim() : null,
+      enabled: chatSlackEnabled ? chatSlackEnabled.checked : false,
+    };
+    const response = await fetch(apiUrl("/api/integrations/chat/connection/slack"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getApiHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (chatSlackStatus) {
+      chatSlackStatus.textContent = response.ok ? "Slack settings saved." : "Unable to save Slack settings.";
+    }
+    loadChatProviders();
+  });
+}
+
+if (chatTeamsForm) {
+  chatTeamsForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      secret: chatTeamsSecret ? chatTeamsSecret.value.trim() : null,
+      enabled: chatTeamsEnabled ? chatTeamsEnabled.checked : false,
+    };
+    const response = await fetch(apiUrl("/api/integrations/chat/connection/teams"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getApiHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (chatTeamsStatus) {
+      chatTeamsStatus.textContent = response.ok ? "Teams settings saved." : "Unable to save Teams settings.";
+    }
+    loadChatProviders();
+  });
+}
+
+if (chatDiscordForm) {
+  chatDiscordForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      secret: chatDiscordSecret ? chatDiscordSecret.value.trim() : null,
+      enabled: chatDiscordEnabled ? chatDiscordEnabled.checked : false,
+    };
+    const response = await fetch(apiUrl("/api/integrations/chat/connection/discord"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...getApiHeaders() },
+      body: JSON.stringify(payload),
+    });
+    if (chatDiscordStatus) {
+      chatDiscordStatus.textContent = response.ok ? "Discord settings saved." : "Unable to save Discord settings.";
+    }
+    loadChatProviders();
   });
 }
 
@@ -1356,7 +1464,6 @@ if (networkSettingsForm) {
       networkSettingsStatus.textContent = 'Network settings saved.';
     }
     loadNetworkSettings();
-loadSummarizationSettings();
     loadTopology();
   });
 }
@@ -1385,7 +1492,6 @@ if (networkScanNow) {
       networkSettingsStatus.textContent = 'Scan complete. ' + count + ' services detected.';
     }
     loadNetworkSettings();
-loadSummarizationSettings();
     loadTopology();
   });
 }

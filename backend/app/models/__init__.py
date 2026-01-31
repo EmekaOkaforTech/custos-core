@@ -17,6 +17,8 @@ from .model_artifact import ModelArtifact
 from .inference_task import InferenceTask
 from .email_connection import EmailConnection
 from .email_message import EmailMessage
+from .chat_integration import ChatIntegration
+from .chat_message import ChatMessage
 
 __all__ = [
     'AuditLog',

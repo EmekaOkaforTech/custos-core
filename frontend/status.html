@@ -123,6 +123,63 @@
       </form>
     </section>
 
+
+    <section class="card" id="chat-card">
+      <h3>Chat integrations</h3>
+      <p class="muted">Receive chat messages via local webhooks. Configure each provider below.</p>
+
+      <div class="card">
+        <h4>Slack</h4>
+        <p class="muted">Webhook URL: <span class="muted" id="chat-slack-url">Connect to backend to view</span></p>
+        <form class="filters" id="chat-slack-form">
+          <label for="chat-slack-secret">Signing secret</label>
+          <input id="chat-slack-secret" name="secret" type="password" />
+          <label class="checkbox-row">
+            <input id="chat-slack-enabled" type="checkbox" />
+            Enable Slack ingestion
+          </label>
+          <div class="tag-input">
+            <button type="submit">Save</button>
+          </div>
+          <p class="muted" id="chat-slack-status">Slack ingestion not configured.</p>
+        </form>
+      </div>
+
+      <div class="card">
+        <h4>Microsoft Teams</h4>
+        <p class="muted">Webhook URL: <span class="muted" id="chat-teams-url">Connect to backend to view</span></p>
+        <form class="filters" id="chat-teams-form">
+          <label for="chat-teams-secret">Webhook secret</label>
+          <input id="chat-teams-secret" name="secret" type="password" />
+          <label class="checkbox-row">
+            <input id="chat-teams-enabled" type="checkbox" />
+            Enable Teams ingestion
+          </label>
+          <div class="tag-input">
+            <button type="submit">Save</button>
+          </div>
+          <p class="muted" id="chat-teams-status">Teams ingestion not configured.</p>
+        </form>
+      </div>
+
+      <div class="card">
+        <h4>Discord</h4>
+        <p class="muted">Webhook URL: <span class="muted" id="chat-discord-url">Connect to backend to view</span></p>
+        <form class="filters" id="chat-discord-form">
+          <label for="chat-discord-secret">Webhook secret</label>
+          <input id="chat-discord-secret" name="secret" type="password" />
+          <label class="checkbox-row">
+            <input id="chat-discord-enabled" type="checkbox" />
+            Enable Discord ingestion
+          </label>
+          <div class="tag-input">
+            <button type="submit">Save</button>
+          </div>
+          <p class="muted" id="chat-discord-status">Discord ingestion not configured.</p>
+        </form>
+      </div>
+    </section>
+
     <section class="card hidden" id="pwa-install-card">
       <h3>Install App</h3>
       <p class="muted">Install Custos on your device for quick access and offline support.</p>
