@@ -64,6 +64,7 @@ def status(db: Session = Depends(get_db)) -> dict:
         "backup_last_status": backup_status,
         "nas_backup_status": nas_backup_status,
         "calendar_status": calendar_status,
+        "accelerator_status": accelerator_status,
         "error_count": error_count,
         "updated_at": now,
     }

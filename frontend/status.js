@@ -923,7 +923,13 @@ async function loadStatus() {
     acceleratorStatus.textContent = "Accelerator: " + type + " · " + status;
   }
   if (acceleratorDetail) {
-    acceleratorDetail.textContent = accelerator.detail || "";
+    const detailParts = [];
+    if (accelerator.detail) detailParts.push(accelerator.detail);
+    if (accelerator.temperature_c !== undefined && accelerator.temperature_c !== null) detailParts.push("Temp " + accelerator.temperature_c + "°C");
+    if (accelerator.utilization_pct !== undefined && accelerator.utilization_pct !== null) detailParts.push("Util " + accelerator.utilization_pct + "%");
+    if (accelerator.memory_pct !== undefined && accelerator.memory_pct !== null) detailParts.push("Mem " + accelerator.memory_pct + "%");
+    if (accelerator.throttled) detailParts.push("Throttling");
+    acceleratorDetail.textContent = detailParts.join(" · ");
   }
 
   const backupFailed = backupStatus.status === 'failed';

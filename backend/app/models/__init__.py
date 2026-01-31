@@ -13,6 +13,7 @@ from .person_tag import PersonTag
 from .risk_flag import RiskFlag
 from .source_record import SourceRecord
 from .model_artifact import ModelArtifact
+from .inference_task import InferenceTask
 
 __all__ = [
     AuditLog,
@@ -30,4 +31,5 @@ __all__ = [
     RiskFlag,
     SourceRecord,
     ModelArtifact,
+    InferenceTask,
 ]

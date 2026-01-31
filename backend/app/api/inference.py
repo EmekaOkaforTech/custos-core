@@ -3,12 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 
 import httpx
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models.network_settings import NetworkSettings
+from app.models.inference_task import InferenceTask
+from app.ops.inference_queue import enqueue_task, run_once
 
 router = APIRouter(prefix="/api/inference", tags=["inference"])
 
@@ -16,6 +18,24 @@ router = APIRouter(prefix="/api/inference", tags=["inference"])
 class InferenceSettingsPayload(BaseModel):
     inference_url: HttpUrl | None = None
     inference_enabled: bool = False
+
+
+class InferenceQueueRequest(BaseModel):
+    task_type: str
+    payload: str | None = None
+    priority: int | None = None
+
+
+class InferenceQueueResponse(BaseModel):
+    id: str
+    task_type: str
+    payload: str | None
+    priority: int
+    status: str
+    error: str | None
+    created_at: datetime
+    started_at: datetime | None
+    completed_at: datetime | None
 
 
 def _get_settings(db: Session) -> NetworkSettings:
@@ -70,3 +90,53 @@ def check_status(db: Session = Depends(get_db)) -> dict:
         "inference_status": status,
         "inference_last_checked": settings.inference_last_checked,
     }
+
+
+@router.post("/queue", response_model=InferenceQueueResponse)
+def queue_task(payload: InferenceQueueRequest, db: Session = Depends(get_db)) -> InferenceQueueResponse:
+    if not payload.task_type.strip():
+        raise HTTPException(status_code=422, detail="task_type must not be blank")
+    priority = payload.priority if payload.priority is not None else (10 if payload.task_type == "voice" else 0)
+    task = enqueue_task(payload.task_type, payload.payload, priority)
+    return InferenceQueueResponse(
+        id=task.id,
+        task_type=task.task_type,
+        payload=task.payload,
+        priority=task.priority,
+        status=task.status,
+        error=task.error,
+        created_at=task.created_at,
+        started_at=task.started_at,
+        completed_at=task.completed_at,
+    )
+
+
+@router.get("/queue", response_model=list[InferenceQueueResponse])
+def list_queue(limit: int = 20, db: Session = Depends(get_db)) -> list[InferenceQueueResponse]:
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 50")
+    tasks = (
+        db.query(InferenceTask)
+        .order_by(InferenceTask.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        InferenceQueueResponse(
+            id=task.id,
+            task_type=task.task_type,
+            payload=task.payload,
+            priority=task.priority,
+            status=task.status,
+            error=task.error,
+            created_at=task.created_at,
+            started_at=task.started_at,
+            completed_at=task.completed_at,
+        )
+        for task in tasks
+    ]
+
+
+@router.post("/queue/run")
+def run_queue_once() -> dict:
+    return run_once()
