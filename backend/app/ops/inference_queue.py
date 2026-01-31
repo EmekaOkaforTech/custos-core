@@ -12,6 +12,7 @@ from app.models.network_settings import NetworkSettings
 from app.models.source_record import SourceRecord
 from app.ops.whisper_hailo import transcribe_audio
 from app.ops.summarization import summarize_text
+from app.models.model_artifact import ModelArtifact
 from app.ops.accelerator import get_accelerator_status
 
 
@@ -84,6 +85,17 @@ def _process_task(db, task: InferenceTask) -> None:
             except json.JSONDecodeError:
                 payload = {}
         provider = payload.get("provider") or "hailo"
+        model = payload.get("model")
+        if provider == "hailo" and not model:
+            artifact = (
+                db.query(ModelArtifact)
+                .filter(ModelArtifact.accelerator.in_(["hailo", "hailo8"]))
+                .filter(ModelArtifact.format == "llm")
+                .order_by(ModelArtifact.created_at.desc())
+                .first()
+            )
+            if artifact:
+                model = artifact.path or artifact.name
         if provider == "hailo" and (status.status != "available" or status.throttled):
             task.status = "deferred"
             task.error = status.detail or "accelerator unavailable"
@@ -92,9 +104,8 @@ def _process_task(db, task: InferenceTask) -> None:
             return
         source_id = payload.get("source_id")
         text_in = payload.get("text")
-        model = payload.get("model")
         max_tokens = payload.get("max_input_tokens")
-        summary, error = summarize_text(text_in or "", provider, model, max_tokens)
+        summary, error, model_used = summarize_text(text_in or "", provider, model, max_tokens)
         if error:
             task.status = "failed"
             task.error = error
@@ -106,7 +117,7 @@ def _process_task(db, task: InferenceTask) -> None:
             if source:
                 source.summary_text = summary
                 source.summary_provider = provider
-                source.summary_model = model
+                source.summary_model = model_used or model
                 source.summary_created_at = datetime.utcnow()
         task.status = "completed"
         task.completed_at = datetime.utcnow()
