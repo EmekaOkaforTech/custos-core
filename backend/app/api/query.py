@@ -16,7 +16,7 @@ from app.ops.summarization import summarize_text
 from app.ops.accelerator import get_accelerator_status
 
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(prefix="/api/query", tags=["query"])
 
 
 class QueryParseIn(BaseModel):
