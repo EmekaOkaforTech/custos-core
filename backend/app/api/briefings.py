@@ -21,6 +21,7 @@ from app.models.meeting import Meeting
 from app.models.source_record import SourceRecord
 from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
+from app.models.email_message import EmailMessage
 
 router = APIRouter(prefix="/api/briefings", tags=["briefings"])
 
@@ -163,7 +164,15 @@ def get_next_briefing(
     status = _status_for(last_source_at, now)
 
     if source:
-        summary = f"Context captured via {source.capture_type}."
+        if source.capture_type == "email":
+            thread_count = (
+                db.query(func.count(EmailMessage.id))
+                .filter(EmailMessage.meeting_id == meeting.id)
+                .scalar()
+            )
+            summary = f"{thread_count or 0} emails in this thread."
+        else:
+            summary = f"Context captured via {source.capture_type}."
         source_meta = {
             "id": source.id,
             "captured_at": source.captured_at,
