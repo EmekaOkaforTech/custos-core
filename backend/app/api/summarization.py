@@ -60,8 +60,14 @@ def update_settings(payload: SummarizationSettingsIn, db: Session = Depends(get_
     settings = _get_or_create_settings(db)
     settings.enabled = payload.enabled
     settings.provider = payload.provider
-    settings.model = payload.model
-    settings.max_input_tokens = payload.max_input_tokens
+    model = payload.model
+    if settings.provider == "hailo" and model and model not in ALLOWED_HAILO_MODELS:
+        raise HTTPException(status_code=400, detail="Unsupported Hailo model")
+    settings.model = model
+    max_tokens = payload.max_input_tokens
+    if max_tokens and max_tokens > 2000:
+        max_tokens = 2000
+    settings.max_input_tokens = max_tokens
     db.commit()
     db.refresh(settings)
     return settings

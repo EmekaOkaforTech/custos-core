@@ -311,8 +311,13 @@
           <option value="hailo">Hailo 8</option>
           <option value="home-server">Home server</option>
         </select>
-        <label for="summarization-model">Model (optional)</label>
-        <input id="summarization-model" name="model" placeholder="e.g. phi-3-mini" />
+        <label for="summarization-model">Model</label>
+        <select id="summarization-model">
+          <option value="">Auto (latest)</option>
+          <option value="phi-3-mini">Phi-3 mini</option>
+          <option value="llama-3.2-3b-quantized">Llama 3.2 3B (quantized)</option>
+        </select>
+        <p class="muted">Hailo 8 supports Phi-3 mini or Llama 3.2 3B quantized.</p>
         <label for="summarization-max-tokens">Max input tokens</label>
         <input id="summarization-max-tokens" type="number" min="256" step="128" />
         <button type="submit">Save</button>
@@ -355,7 +360,34 @@
       <h3>Relationship trajectories</h3>
       <div class="cards" id="relationship-trajectory-cards"></div>
     </section>
-  </main>
+      <section class="section" id="analytics-section">
+      <h3>Analytics</h3>
+      <div class="cards" id="analytics-summary"></div>
+      <div class="cards" id="relationship-health"></div>
+      <div class="cards" id="commitment-analytics"></div>
+      <div class="cards" id="context-coverage"></div>
+      <div class="card">
+        <button class="button-link" id="analytics-export">Export analytics (CSV)</button>
+        <p class="muted" id="analytics-export-status"></p>
+      </div>
+    </section>
+
+    <section class="section" id="export-section">
+      <h3>Export</h3>
+      <form class="filters" id="export-form">
+        <label for="export-format">Format</label>
+        <select id="export-format" name="format">
+          <option value="markdown">Markdown</option>
+          <option value="json">JSON</option>
+        </select>
+        <button type="submit">Export</button>
+      </form>
+      <p class="muted" id="export-status"></p>
+      <button class="button-link" id="export-ics">Export calendar (ICS)</button>
+      <p class="muted" id="export-ics-status"></p>
+    </section>
+
+</main>
 
   <div class="modal" id="capture-modal" aria-hidden="true">
     <div class="modal-backdrop" data-capture-close></div>
