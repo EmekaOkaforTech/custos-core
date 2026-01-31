@@ -334,6 +334,7 @@ export function getCaptureTypes() {
   const baseTypes = [
     { value: 'notes', label: 'Notes' },
     { value: 'transcript', label: 'Transcript' },
+    { value: 'audio', label: 'Audio recording' },
     { value: 'decision', label: 'Decision' },
     { value: 'follow-up', label: 'Follow-up' },
     { value: 'reflection', label: 'Reflection' },

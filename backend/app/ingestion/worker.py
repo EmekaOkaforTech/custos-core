@@ -117,13 +117,16 @@ def _process_job(session: Session, job: IngestionJob):
             session.commit()
             return
         source_id = f"s_{uuid4().hex}"
+        media_uri = None
+        if job.capture_type == "audio" and getattr(job, "media_path", None):
+            media_uri = f"file://{job.media_path}"
         source = SourceRecord(
             id=source_id,
             meeting_id=job.meeting_id,
             person_id=job.person_id,  # Epic 32: person-direct support
             captured_at=datetime.utcnow(),
             capture_type=job.capture_type,
-            uri=f"local://sources/{source_id}",
+            uri=media_uri or f"local://sources/{source_id}",
             relevant_at=job.relevant_at,
             dedupe_key=dedupe_key,
             index_in_memory=bool(job.index_in_memory),
@@ -138,6 +141,8 @@ def _process_job(session: Session, job: IngestionJob):
         person_direct = session.get(Person, job.person_id) if job.person_id and not job.meeting_id else None
         meeting_title = meeting.title if meeting else (f"Note for {person_direct.name}" if person_direct else "Context")
         excerpt = (job.payload or "").strip()
+        if job.capture_type == "audio" and not excerpt:
+            excerpt = "Audio recording captured."
         if len(excerpt) > 200:
             excerpt = f"{excerpt[:197]}…"
         should_index = job.index_in_memory if job.index_in_memory is not None else job.capture_type == "reflection"
@@ -161,7 +166,7 @@ def _process_job(session: Session, job: IngestionJob):
                 # Vector indexing is best-effort and must never block ingestion.
                 print(f"Vector indexing failed for {source_id}: {exc}")
 
-        commitments = [] if job.capture_type == "reflection" else extract_commitments(job.payload)
+        commitments = [] if job.capture_type in {"reflection", "audio"} else extract_commitments(job.payload)
         for item in commitments:
             existing_commitment = (
                 session.query(Commitment)
@@ -182,7 +187,7 @@ def _process_job(session: Session, job: IngestionJob):
             )
             session.add(commitment)
 
-        flags = extract_risk_flags(job.payload)
+        flags = [] if job.capture_type == "audio" else extract_risk_flags(job.payload)
         for flag in flags:
             risk_flag = RiskFlag(
                 id=f"rf_{uuid4().hex}",

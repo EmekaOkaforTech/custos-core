@@ -238,6 +238,16 @@
           <input id="capture-index-memory" type="checkbox" />
         </div>
 
+        <div class="audio-group hidden" id="capture-audio-group">
+          <p class="muted">Audio recording</p>
+          <div class="audio-controls">
+            <button type="button" class="button-link" id="capture-audio-start">Start recording</button>
+            <button type="button" class="button-link" id="capture-audio-stop" disabled>Stop</button>
+            <audio id="capture-audio-preview" class="hidden" controls></audio>
+          </div>
+          <p class="muted" id="capture-audio-status"></p>
+        </div>
+
         <label for="capture-notes">Notes</label>
         <textarea id="capture-notes" name="payload" rows="6" placeholder="Write notes here"></textarea>
 

@@ -44,6 +44,11 @@ export function initCapture({ onSuccess } = {}) {
   const relevantDate = document.getElementById('capture-relevant-date');
   const indexInMemory = document.getElementById('capture-index-memory');
   const notes = document.getElementById('capture-notes');
+  const audioGroup = document.getElementById('capture-audio-group');
+  const audioStart = document.getElementById('capture-audio-start');
+  const audioStop = document.getElementById('capture-audio-stop');
+  const audioPreview = document.getElementById('capture-audio-preview');
+  const audioStatus = document.getElementById('capture-audio-status');
   const status = document.getElementById('capture-status');
   const submitButton = document.getElementById('capture-submit');
   const peopleInput = document.getElementById('capture-people-input');
@@ -60,10 +65,30 @@ export function initCapture({ onSuccess } = {}) {
   let peopleList = [];
   let meetingById = new Map();
   let quickMode = false;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioBlob = null;
 
   function setStatus(message) {
     if (!status) return;
     status.textContent = message || '';
+  }
+
+  function setAudioStatus(message) {
+    if (!audioStatus) return;
+    audioStatus.textContent = message || '';
+  }
+
+  function setAudioVisible(visible) {
+    if (audioGroup) {
+      audioGroup.classList.toggle('hidden', !visible);
+    }
+    if (notes) {
+      notes.disabled = visible;
+      if (visible) {
+        notes.value = '';
+      }
+    }
   }
 
   function setModalOpen(open) {
@@ -553,6 +578,82 @@ export function initCapture({ onSuccess } = {}) {
       }
       return;
     }
+    const captureValue = captureType?.value || 'notes';
+    if (captureValue === 'audio') {
+      if (!audioBlob) {
+        setStatus('Record audio before saving.');
+        if (submitButton) submitButton.disabled = false;
+        return;
+      }
+      if (!isOnline()) {
+        setStatus('Audio capture requires an active connection.');
+        if (submitButton) submitButton.disabled = false;
+        return;
+      }
+      const peopleIds = Array.from(selectedPeople.keys());
+      const relevantAt = resolveRelevantAt();
+      const commitmentRelevantAt = commitmentRelevantBy?.value
+        ? new Date(`${commitmentRelevantBy.value}T09:00:00`).toISOString()
+        : null;
+      const indexFlag = indexInMemory ? indexInMemory.checked : false;
+      const form = new FormData();
+      form.append('meeting_id', meeting.id);
+      form.append('file', audioBlob, 'capture.webm');
+      if (peopleIds.length) {
+        form.append('people_ids', JSON.stringify(peopleIds));
+      }
+      if (relevantAt) {
+        form.append('relevant_at', relevantAt);
+      }
+      if (commitmentRelevantAt) {
+        form.append('commitment_relevant_by', commitmentRelevantAt);
+      }
+      if (indexFlag) {
+        form.append('index_in_memory', String(indexFlag));
+      }
+      try {
+        const response = await fetch(apiUrl('/api/audio/recordings'), {
+          method: 'POST',
+          headers: { ...getApiHeaders() },
+          body: form,
+        });
+        if (!response.ok) {
+          setStatus('Audio capture failed. Please try again.');
+          if (submitButton) submitButton.disabled = false;
+          return;
+        }
+        setStatus('Audio captured. Briefing will refresh shortly.');
+        audioBlob = null;
+        audioChunks = [];
+        if (audioPreview) {
+          audioPreview.src = '';
+          audioPreview.classList.add('hidden');
+        }
+        setAudioStatus('');
+        if (meetingTitleInput) {
+          meetingTitleInput.value = '';
+        }
+        clearPeople();
+        if (commitmentRelevantBy) {
+          commitmentRelevantBy.value = '';
+        }
+        if (relevantWhen) {
+          relevantWhen.value = '';
+        }
+        if (relevantDate) {
+          relevantDate.value = '';
+          setRelevantDateVisible(false);
+        }
+        if (typeof onSuccess === 'function') {
+          onSuccess();
+        }
+        setTimeout(() => setModalOpen(false), 300);
+      } catch (err) {
+        setStatus('Audio capture failed. Please check connectivity.');
+      }
+      if (submitButton) submitButton.disabled = false;
+      return;
+    }
     const payload = notes?.value?.trim() || '';
     if (!payload) {
       setStatus('Add a short note before saving.');
@@ -561,7 +662,6 @@ export function initCapture({ onSuccess } = {}) {
       }
       return;
     }
-    const captureValue = captureType?.value || 'notes';
     const indexFlag = indexInMemory ? indexInMemory.checked : captureValue === 'reflection';
     const peopleIds = Array.from(selectedPeople.keys());
     const relevantAt = resolveRelevantAt();
@@ -680,6 +780,7 @@ export function initCapture({ onSuccess } = {}) {
     applyStoredDefaults();
     if (captureType) {
       applyIndexDefault(captureType.value);
+      setAudioVisible(captureType.value === "audio");
     }
     updateMeetingDetail();
     setAdvancedVisible(true);
@@ -706,6 +807,7 @@ export function initCapture({ onSuccess } = {}) {
     applyStoredDefaults();
     if (captureType) {
       applyIndexDefault(captureType.value);
+      setAudioVisible(captureType.value === "audio");
     }
     setAdvancedVisible(false);
     updatePeopleActionLabel();
@@ -750,6 +852,7 @@ export function initCapture({ onSuccess } = {}) {
   if (captureType) {
     captureType.addEventListener('change', () => {
       applyIndexDefault(captureType.value);
+      setAudioVisible(captureType.value === "audio");
     });
   }
   if (resetDefaults) {

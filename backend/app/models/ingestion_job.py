@@ -19,6 +19,7 @@ class IngestionJob(Base):
     meeting_id = Column(String, nullable=True)  # Nullable for person-direct notes
     person_id = Column(String, nullable=True)  # Epic 32: direct person notes
     payload = Column(Text, nullable=False)
+    media_path = Column(Text, nullable=True)
     capture_type = Column(String, nullable=False)
     people_ids = Column(Text, nullable=True)
     source_id = Column(String, nullable=True)
