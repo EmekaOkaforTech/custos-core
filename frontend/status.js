@@ -1916,3 +1916,169 @@ if (settingsModal) {
     }
   });
 }
+
+const analyticsSummary = document.getElementById("analytics-summary");
+const relationshipHealth = document.getElementById("relationship-health");
+const commitmentAnalytics = document.getElementById("commitment-analytics");
+const contextCoverage = document.getElementById("context-coverage");
+const analyticsExport = document.getElementById("analytics-export");
+const analyticsExportStatus = document.getElementById("analytics-export-status");
+
+function renderAnalyticsSummary(metrics) {
+  if (!analyticsSummary) return;
+  analyticsSummary.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <strong>Totals</strong>
+    <p class="muted">Meetings: ${metrics.total_meetings || 0}</p>
+    <p class="muted">People: ${metrics.total_people || 0}</p>
+    <p class="muted">Captures: ${metrics.total_sources || 0}</p>
+    <p class="muted">Open commitments: ${metrics.open_commitments || 0}</p>
+  `;
+  analyticsSummary.appendChild(card);
+}
+
+function renderRelationshipHealth(items) {
+  if (!relationshipHealth) return;
+  relationshipHealth.innerHTML = "";
+  items.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <strong>${item.name}</strong>
+      <p class="muted">Interactions (last ${item.window_days} days): ${item.count}</p>
+    `;
+    relationshipHealth.appendChild(card);
+  });
+}
+
+function renderCommitmentAnalytics(data) {
+  if (!commitmentAnalytics) return;
+  commitmentAnalytics.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "card";
+  const completionPct = Math.round((data.completion_rate || 0) * 100);
+  card.innerHTML = `
+    <strong>Commitments</strong>
+    <p class="muted">Total: ${data.total || 0}</p>
+    <p class="muted">Acknowledged: ${data.acknowledged || 0}</p>
+    <p class="muted">Open: ${data.open || 0}</p>
+    <p class="muted">Completion: ${completionPct}%</p>
+  `;
+  commitmentAnalytics.appendChild(card);
+}
+
+function renderContextCoverage(data) {
+  if (!contextCoverage) return;
+  contextCoverage.innerHTML = "";
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <strong>Context coverage</strong>
+    <p class="muted">Meetings with captures: ${data.meetings_with_sources || 0}</p>
+    <p class="muted">Meetings without captures: ${data.meetings_without_sources || 0}</p>
+    <p class="muted">Stale people: ${(data.stale_people || []).length}</p>
+  `;
+  contextCoverage.appendChild(card);
+}
+
+async function loadAnalytics() {
+  if (!analyticsSummary) return;
+  try {
+    const refresh = await fetch(apiUrl("/api/analytics/refresh"), { method: "POST", headers: getApiHeaders() });
+    if (refresh.ok) {
+      const data = await refresh.json();
+      renderAnalyticsSummary(data.metrics || {});
+    }
+    const relationship = await fetch(apiUrl("/api/analytics/relationship-health?window_days=30"));
+    if (relationship.ok) {
+      const data = await relationship.json();
+      renderRelationshipHealth(data.items || []);
+    }
+    const commitments = await fetch(apiUrl("/api/analytics/commitments"));
+    if (commitments.ok) {
+      renderCommitmentAnalytics(await commitments.json());
+    }
+    const coverage = await fetch(apiUrl("/api/analytics/context-coverage"));
+    if (coverage.ok) {
+      renderContextCoverage(await coverage.json());
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
+if (analyticsExport) {
+  analyticsExport.addEventListener("click", async () => {
+    if (analyticsExportStatus) analyticsExportStatus.textContent = "Exporting...";
+    const response = await fetch(apiUrl("/api/analytics/export"), { method: "POST", headers: getApiHeaders() });
+    if (!response.ok) {
+      if (analyticsExportStatus) analyticsExportStatus.textContent = "Export failed.";
+      return;
+    }
+    const data = await response.json();
+    const blob = new Blob([data.csv || ""], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "custos-analytics.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    if (analyticsExportStatus) analyticsExportStatus.textContent = "Export ready.";
+  });
+}
+
+loadAnalytics();
+
+const exportForm = document.getElementById("export-form");
+const exportFormat = document.getElementById("export-format");
+const exportStatus = document.getElementById("export-status");
+const exportIcs = document.getElementById("export-ics");
+const exportIcsStatus = document.getElementById("export-ics-status");
+
+if (exportForm) {
+  exportForm.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (exportStatus) exportStatus.textContent = "Exporting...";
+    const response = await fetch(apiUrl("/api/export/run"), {
+      method: "POST",
+      headers: getApiHeaders(),
+      body: JSON.stringify({ format: exportFormat.value }),
+    });
+    if (!response.ok) {
+      if (exportStatus) exportStatus.textContent = "Export failed.";
+      return;
+    }
+    const data = await response.json();
+    const content = data.format === "json" ? JSON.stringify(data.content, null, 2) : data.content;
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = data.format === "json" ? "custos-export.json" : "custos-export.md";
+    link.click();
+    URL.revokeObjectURL(url);
+    if (exportStatus) exportStatus.textContent = "Export ready.";
+  });
+}
+
+if (exportIcs) {
+  exportIcs.addEventListener("click", async () => {
+    if (exportIcsStatus) exportIcsStatus.textContent = "Exporting...";
+    const response = await fetch(apiUrl("/api/export/ics"));
+    if (!response.ok) {
+      if (exportIcsStatus) exportIcsStatus.textContent = "Export failed.";
+      return;
+    }
+    const data = await response.json();
+    const blob = new Blob([data.ics || ""], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "custos-calendar.ics";
+    link.click();
+    URL.revokeObjectURL(url);
+    if (exportIcsStatus) exportIcsStatus.textContent = "Export ready.";
+  });
+}
