@@ -14,6 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.svg" />
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="print.css" media="print" />
 </head>
 <body>
   <header class="site-header">
@@ -87,7 +88,20 @@
       <div class="cards" id="commitments"></div>
     </section>
 
-    <section class="section secondary" id="memory-section">
+        <section class="section secondary" id="query-section">
+      <h3>Ask Custos</h3>
+      <form class="filters" id="query-form">
+        <label for="query-input">Question</label>
+        <input id="query-input" name="query" type="text" placeholder="Ask about decisions, people, or recent context" />
+        <button type="submit" id="query-run">Ask</button>
+      </form>
+      <p class="muted" id="query-note"></p>
+      <div class="card hidden" id="query-answer"></div>
+      <div class="cards" id="query-results"></div>
+      <div class="cards" id="query-history"></div>
+    </section>
+
+<section class="section secondary" id="memory-section">
       <div class="section-header">
         <h3>Memory recall</h3>
         <button class="button-link" id="memory-toggle" type="button">Show</button>

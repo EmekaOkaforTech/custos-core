@@ -1399,3 +1399,115 @@ updateOfflineIndicator();
 updateTerminology();
 loadSummarizationSettings();
 loadBriefings().catch(() => {});
+
+const queryForm = document.getElementById("query-form");
+const queryInput = document.getElementById("query-input");
+const queryNote = document.getElementById("query-note");
+const queryAnswer = document.getElementById("query-answer");
+const queryResults = document.getElementById("query-results");
+const queryHistory = document.getElementById("query-history");
+
+function renderQueryResults(items) {
+  if (!queryResults) return;
+  queryResults.innerHTML = "";
+  if (!items || items.length === 0) {
+    queryResults.innerHTML = "<div class=\"card\"><p class=\"muted\">No results yet.</p></div>";
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <strong>${item.meeting_title || "Context"}</strong>
+      <p class="muted">${item.capture_type || "capture"} · ${item.captured_at ? formatDate(item.captured_at) : ""}</p>
+      <p>${item.excerpt || ""}</p>
+    `;
+    queryResults.appendChild(card);
+  });
+}
+
+function renderQueryHistory(items) {
+  if (!queryHistory) return;
+  queryHistory.innerHTML = "";
+  if (!items || items.length === 0) {
+    return;
+  }
+  items.forEach(item => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "button-link";
+    btn.textContent = item.query_text;
+    btn.addEventListener("click", () => runQuery(item.query_text));
+    card.appendChild(btn);
+    queryHistory.appendChild(card);
+  });
+}
+
+async function loadQueryHistory() {
+  if (!queryHistory) return;
+  try {
+    const response = await fetch(apiUrl("/api/query/history"));
+    if (!response.ok) return;
+    const data = await response.json();
+    renderQueryHistory(data);
+  } catch (err) {
+    // ignore
+  }
+}
+
+async function runQuery(queryText) {
+  if (!queryText) return;
+  if (queryNote) queryNote.textContent = "";
+  if (queryAnswer) {
+    queryAnswer.classList.add("hidden");
+    queryAnswer.textContent = "";
+  }
+
+  const parseResponse = await fetch(apiUrl("/api/query/parse"), {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify({ query: queryText }),
+  });
+  const parsed = parseResponse.ok ? await parseResponse.json() : { intent: "search", filters: {} };
+
+  await fetch(apiUrl("/api/query/history"), {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify(parsed),
+  });
+
+  const searchResponse = await fetch(apiUrl("/api/query/search"), {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify({ query: queryText, filters: parsed.filters, limit: 5 }),
+  });
+  const searchData = searchResponse.ok ? await searchResponse.json() : { items: [] };
+  renderQueryResults(searchData.items || []);
+
+  const answerResponse = await fetch(apiUrl("/api/query/answer"), {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify({ query: queryText, filters: parsed.filters, limit: 5 }),
+  });
+  const answerData = answerResponse.ok ? await answerResponse.json() : null;
+  if (answerData && queryAnswer) {
+    queryAnswer.classList.remove("hidden");
+    queryAnswer.textContent = answerData.answer || "";
+  }
+
+  if (queryNote) {
+    queryNote.textContent = parsed.note ? `Note: ${parsed.note}` : `Intent: ${parsed.intent}`;
+  }
+  loadQueryHistory();
+}
+
+if (queryForm && queryInput) {
+  queryForm.addEventListener("submit", event => {
+    event.preventDefault();
+    runQuery(queryInput.value.trim());
+  });
+}
+
+loadQueryHistory();

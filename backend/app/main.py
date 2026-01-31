@@ -11,6 +11,10 @@ from app.api.email import router as email_router
 from app.api.chat import router as chat_router
 from app.api.status import router as status_router
 from app.api.summarization import router as summarization_router
+from app.api.analytics import router as analytics_router
+from app.api.export import router as export_router
+from app.api.users import router as users_router
+from app.api.query import router as query_router
 from app.api.backup import router as backup_router
 from app.api.people import router as people_router
 from app.api.sources import router as sources_router
@@ -50,6 +54,7 @@ app.include_router(people_router)
 app.include_router(admin_router)
 app.include_router(sources_router)
 app.include_router(memory_router)
+app.include_router(query_router)
 app.include_router(network_router)
 app.include_router(inference_router)
 app.include_router(sync_router)
