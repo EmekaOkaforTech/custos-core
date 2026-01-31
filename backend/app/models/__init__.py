@@ -6,6 +6,7 @@ from .calendar_connection import CalendarConnection
 from .meeting import Meeting
 from .meeting_participant import MeetingParticipant
 from .person import Person
+from .person_tag import PersonTag
 from .risk_flag import RiskFlag
 from .source_record import SourceRecord
 
@@ -17,6 +18,7 @@ __all__ = [
     "Meeting",
     "MeetingParticipant",
     "Person",
+    "PersonTag",
     "RiskFlag",
     "SourceRecord",
 ]

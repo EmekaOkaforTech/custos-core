@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.settings import get_data_dir
@@ -33,7 +33,7 @@ def write_status(payload: dict) -> None:
 def mark_attempt(enabled: bool, error: str | None = None) -> None:
     payload = read_status()
     payload["enabled"] = enabled
-    payload["last_attempt"] = datetime.utcnow().isoformat()
+    payload["last_attempt"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     if error:
         payload["last_error"] = error
     write_status(payload)
@@ -42,7 +42,7 @@ def mark_attempt(enabled: bool, error: str | None = None) -> None:
 def mark_success(enabled: bool) -> None:
     payload = read_status()
     payload["enabled"] = enabled
-    payload["last_attempt"] = datetime.utcnow().isoformat()
-    payload["last_success"] = datetime.utcnow().isoformat()
+    payload["last_attempt"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
+    payload["last_success"] = datetime.now(UTC).replace(tzinfo=None).isoformat()
     payload["last_error"] = None
     write_status(payload)

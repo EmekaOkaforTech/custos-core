@@ -5,7 +5,9 @@ import {
   formatDate,
   getApiHeaders,
   getApiBase,
+  getBriefingMode,
   getReflectionCloseout,
+  getTerminology,
   isSeedIdentifier,
   isSetupComplete,
   setBriefingCache,
@@ -81,6 +83,22 @@ function setBanner(kind, message) {
   briefBanner.style.display = 'block';
   briefBanner.dataset.kind = kind;
   briefBanner.textContent = message;
+}
+
+function updateTerminology() {
+  const terms = getTerminology();
+
+  // Update commitments section heading
+  const commitmentsHeading = document.querySelector('#commitments-section h3');
+  if (commitmentsHeading) {
+    commitmentsHeading.textContent = terms.commitments;
+  }
+
+  // Update today's section heading
+  const todayHeading = document.querySelector('#today-section h3');
+  if (todayHeading) {
+    todayHeading.textContent = `Today's ${terms.meetings.toLowerCase()}`;
+  }
 }
 
 function setDemoBadge(show) {
@@ -670,13 +688,14 @@ function renderTodayMeeting(item) {
 }
 
 function renderEmptyState() {
+  const terms = getTerminology();
   const card = document.createElement('div');
   card.className = 'card';
   const title = document.createElement('h2');
-  title.textContent = 'No upcoming context';
+  title.textContent = `No upcoming ${terms.meeting.toLowerCase()}`;
   const text = document.createElement('p');
   text.className = 'muted';
-  text.textContent = 'Create a context entry to start capturing notes or connect your calendar.';
+  text.textContent = `Create a ${terms.meeting.toLowerCase()} entry to start capturing notes or connect your calendar.`;
   const actions = document.createElement('div');
   actions.className = 'empty-actions';
 
@@ -684,8 +703,8 @@ function renderEmptyState() {
   createButton.className = 'button-link';
   createButton.id = 'empty-create';
   createButton.type = 'button';
-  createButton.setAttribute('aria-label', 'Create a new context entry');
-  createButton.textContent = 'Create context';
+  createButton.setAttribute('aria-label', `Create a new ${terms.meeting.toLowerCase()} entry`);
+  createButton.textContent = `Create ${terms.meeting.toLowerCase()}`;
   createButton.addEventListener('click', () => {
     const captureButton = document.getElementById('capture-open');
     if (captureButton) {
@@ -708,6 +727,162 @@ function renderEmptyState() {
   card.appendChild(text);
   card.appendChild(actions);
   return card;
+}
+
+// Person-first briefing loading
+async function loadPersonFirstBriefings() {
+  try {
+    const response = await fetch(apiUrl('/api/briefings/by-person'), { headers: getApiHeaders() });
+    if (!response.ok) {
+      throw new Error('Failed to load person-first briefing');
+    }
+    const data = await response.json();
+
+    const hasSeedPeople = data.people?.some(p => isSeedIdentifier(p.id));
+    setBanner('info', hasSeedPeople ? SEED_BANNER_COPY : '');
+    setDemoMode(Boolean(hasSeedPeople));
+    setDemoBadge(Boolean(hasSeedPeople));
+
+    renderPersonFirstBriefing(data);
+
+    // Still load supplementary sections
+    await loadSupplementarySections();
+  } catch (error) {
+    console.error('Error loading person-first briefing:', error);
+    setBanner('error', 'Unable to load person-first briefing.');
+  }
+}
+
+async function loadSupplementarySections() {
+  // Load commitments
+  try {
+    const commitmentsResponse = await fetch(apiUrl('/api/commitments?acknowledged=false'), { headers: getApiHeaders() });
+    if (commitmentsResponse.ok) {
+      const commitments = await commitmentsResponse.json();
+      commitmentsSection.innerHTML = '';
+      if (commitments && commitments.length) {
+        commitments.forEach(item => commitmentsSection.appendChild(renderCommitment(item)));
+      } else {
+        const terms = getTerminology();
+        commitmentsSection.innerHTML = `<div class="card"><p class="muted">No open ${terms.commitments.toLowerCase()}.</p></div>`;
+      }
+    }
+  } catch (e) {
+    console.error('Error loading commitments:', e);
+  }
+
+  // Load recent captures
+  try {
+    const recentResponse = await fetch(apiUrl('/api/ingestion/recent?limit=10'), { headers: getApiHeaders() });
+    if (recentResponse.ok) {
+      const recentData = await recentResponse.json();
+      renderRecentCaptures(recentData);
+      renderReflections((recentData || []).filter(item => item.capture_type === 'reflection'));
+    }
+  } catch (e) {
+    console.error('Error loading recent captures:', e);
+  }
+
+  // Load memory
+  try {
+    const memoryResponse = await fetch(apiUrl('/api/memory/surface'), { headers: getApiHeaders() });
+    if (memoryResponse.ok) {
+      const memoryData = await memoryResponse.json();
+      renderMemory(memoryData.items || []);
+    }
+  } catch (e) {
+    console.error('Error loading memory:', e);
+  }
+
+  applyMemoryCollapseState();
+  setSecondaryVisibility(showSecondary);
+}
+
+// Person-first briefing rendering
+function renderPersonFirstBriefing(data) {
+  const terms = getTerminology();
+  briefCards.innerHTML = '';
+
+  if (!data.people || data.people.length === 0) {
+    briefTitle.textContent = `${terms.person}-first brief`;
+    briefTimer.textContent = `No ${terms.people.toLowerCase()} with open ${terms.commitments.toLowerCase()}`;
+    briefCards.appendChild(renderEmptyState());
+    return;
+  }
+
+  briefTitle.textContent = `${terms.person}-first brief`;
+  briefTimer.textContent = `${data.people.length} ${terms.people.toLowerCase()} with context`;
+
+  data.people.forEach(person => {
+    const card = document.createElement('article');
+    card.className = 'card person-brief-card';
+
+    const header = document.createElement('div');
+    header.className = 'person-card-header';
+
+    const name = document.createElement('h2');
+    name.textContent = person.name;
+
+    const profileLink = document.createElement('a');
+    profileLink.className = 'button-link profile-link';
+    profileLink.href = `person.html?id=${encodeURIComponent(person.id)}`;
+    profileLink.textContent = 'Profile →';
+
+    header.appendChild(name);
+    header.appendChild(profileLink);
+
+    const meta = document.createElement('div');
+    meta.className = 'person-meta';
+
+    if (person.role) {
+      const roleBadge = document.createElement('span');
+      roleBadge.className = 'role-badge';
+      roleBadge.textContent = person.role;
+      meta.appendChild(roleBadge);
+    }
+
+    if (person.last_interaction_at) {
+      const lastSeen = document.createElement('span');
+      lastSeen.className = 'muted';
+      lastSeen.textContent = `Last: ${formatDate(person.last_interaction_at)}`;
+      meta.appendChild(lastSeen);
+    }
+
+    card.appendChild(header);
+    card.appendChild(meta);
+
+    // Commitments
+    if (person.open_commitments && person.open_commitments.length > 0) {
+      const commitmentsHeader = document.createElement('p');
+      commitmentsHeader.className = 'muted';
+      commitmentsHeader.textContent = `Open ${terms.commitments.toLowerCase()}:`;
+      card.appendChild(commitmentsHeader);
+
+      person.open_commitments.slice(0, 3).forEach(commitment => {
+        const item = document.createElement('p');
+        const text = commitment.text || `${terms.commitment}`;
+        item.textContent = text.length > 100 ? `${text.slice(0, 97)}…` : text;
+        card.appendChild(item);
+      });
+
+      if (person.open_commitments.length > 3) {
+        const more = document.createElement('p');
+        more.className = 'muted';
+        more.textContent = `+ ${person.open_commitments.length - 3} more`;
+        card.appendChild(more);
+      }
+    }
+
+    // Next meeting
+    if (person.next_meeting) {
+      const meetingInfo = document.createElement('p');
+      meetingInfo.className = 'muted';
+      meetingInfo.textContent = `Next ${terms.meeting.toLowerCase()}: ${person.next_meeting.title} at ${formatDate(person.next_meeting.starts_at)}`;
+      card.appendChild(meetingInfo);
+    }
+
+    briefCards.appendChild(card);
+  });
 }
 
 function showSetupBanner(show) {
@@ -891,6 +1066,17 @@ async function loadBriefings() {
     showSetupBanner(true);
     return;
   }
+
+  // Update terminology based on current mode
+  updateTerminology();
+
+  // Check if person-first mode is enabled
+  const briefingMode = getBriefingMode();
+  if (briefingMode === 'person') {
+    await loadPersonFirstBriefings();
+    return;
+  }
+
   const nextResponse = await fetch(apiUrl('/api/briefings/next'), { headers: getApiHeaders() });
   const nextData = await nextResponse.json();
   setBriefingCache({ next: nextData, today: null });
@@ -1134,3 +1320,24 @@ if (captureMoveModal) {
 if (captureMoveClose) {
   captureMoveClose.addEventListener('click', () => setMoveModalOpen(false));
 }
+
+// Offline indicator management
+const offlineBadge = document.getElementById('offline-badge');
+
+function updateOfflineIndicator() {
+  if (!offlineBadge) return;
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+  offlineBadge.classList.toggle('hidden', !isOffline);
+}
+
+window.addEventListener('online', () => {
+  updateOfflineIndicator();
+  // Reload briefings when coming back online
+  loadBriefings().catch(() => {});
+});
+
+window.addEventListener('offline', updateOfflineIndicator);
+
+// Initial check
+updateOfflineIndicator();
+updateTerminology();

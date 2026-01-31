@@ -5,11 +5,19 @@ import {
   getApiHeaders,
   getBriefingCache,
   getCaptureDefaults,
+  getCaptureTypes,
+  getTerminology,
   isSetupComplete,
   setCaptureDefaults,
   clearCaptureDefaults,
   setBriefingCache,
 } from './ui-state.js';
+import {
+  queueCapture,
+  getPendingCount,
+  syncPendingCaptures,
+  isOnline,
+} from './offline-queue.js';
 
 export function initCapture({ onSuccess } = {}) {
   const modal = document.getElementById('capture-modal');
@@ -105,11 +113,29 @@ export function initCapture({ onSuccess } = {}) {
 
   function updatePeopleActionLabel() {
     if (!addPerson) return;
+    const terms = getTerminology();
     const type = peopleType?.value || 'person';
     if (type === 'org') {
       addPerson.textContent = 'Add organization';
     } else {
-      addPerson.textContent = 'Add person';
+      addPerson.textContent = `Add ${terms.person.toLowerCase()}`;
+    }
+  }
+
+  function populateCaptureTypes() {
+    if (!captureType) return;
+    const types = getCaptureTypes();
+    const currentValue = captureType.value;
+    captureType.innerHTML = '';
+    types.forEach(type => {
+      const option = document.createElement('option');
+      option.value = type.value;
+      option.textContent = type.label;
+      captureType.appendChild(option);
+    });
+    // Restore previous value if it still exists
+    if (currentValue && types.some(t => t.value === currentValue)) {
+      captureType.value = currentValue;
     }
   }
 
@@ -552,6 +578,41 @@ export function initCapture({ onSuccess } = {}) {
       index_in_memory: indexFlag,
     };
 
+    // Check if we're offline - queue for later sync
+    if (!isOnline()) {
+      try {
+        await queueCapture(body);
+        setStatus('Saved offline. Will sync when connected.');
+        notes.value = '';
+        if (meetingTitleInput) {
+          meetingTitleInput.value = '';
+        }
+        setCaptureDefaults({
+          captureType: captureValue,
+          people: Array.from(selectedPeople.entries()).map(([id, name]) => ({ id, name })),
+        });
+        clearPeople();
+        if (commitmentRelevantBy) {
+          commitmentRelevantBy.value = '';
+        }
+        if (relevantWhen) {
+          relevantWhen.value = '';
+        }
+        if (relevantDate) {
+          relevantDate.value = '';
+          setRelevantDateVisible(false);
+        }
+        updatePendingBadge();
+        setTimeout(() => setModalOpen(false), 500);
+      } catch (err) {
+        setStatus('Failed to save offline. Please try again.');
+      }
+      if (submitButton) {
+        submitButton.disabled = false;
+      }
+      return;
+    }
+
     try {
       const response = await fetch(apiUrl('/api/ingestion'), {
         method: 'POST',
@@ -590,7 +651,16 @@ export function initCapture({ onSuccess } = {}) {
       }
       setTimeout(() => setModalOpen(false), 300);
     } catch (err) {
-      setStatus('Capture failed. Please check connectivity.');
+      // Network error - try to queue offline
+      try {
+        await queueCapture(body);
+        setStatus('Network error. Saved offline for later sync.');
+        notes.value = '';
+        updatePendingBadge();
+        setTimeout(() => setModalOpen(false), 500);
+      } catch (queueErr) {
+        setStatus('Capture failed. Please check connectivity.');
+      }
       if (submitButton) {
         submitButton.disabled = false;
       }
@@ -604,6 +674,7 @@ export function initCapture({ onSuccess } = {}) {
     if (!guardSetupReady()) {
       return;
     }
+    populateCaptureTypes();
     void loadMeetings();
     loadPeople();
     applyStoredDefaults();
@@ -612,6 +683,7 @@ export function initCapture({ onSuccess } = {}) {
     }
     updateMeetingDetail();
     setAdvancedVisible(true);
+    updatePeopleActionLabel();
     if (meetingSelect) {
       meetingSelect.focus();
     }
@@ -624,6 +696,7 @@ export function initCapture({ onSuccess } = {}) {
     if (!guardSetupReady()) {
       return;
     }
+    populateCaptureTypes();
     loadPeople();
     loadMeetings().then(() => {
       if (quickMode) {
@@ -635,6 +708,7 @@ export function initCapture({ onSuccess } = {}) {
       applyIndexDefault(captureType.value);
     }
     setAdvancedVisible(false);
+    updatePeopleActionLabel();
   }
 
   function openReflectionCapture() {
@@ -644,11 +718,13 @@ export function initCapture({ onSuccess } = {}) {
     if (!guardSetupReady()) {
       return;
     }
+    populateCaptureTypes();
     loadPeople();
     loadMeetings().then(() => {
       applyReflectionDefaults();
     });
     setAdvancedVisible(true);
+    updatePeopleActionLabel();
   }
 
   openButton.addEventListener('click', openModal);
@@ -734,4 +810,43 @@ export function initCapture({ onSuccess } = {}) {
   if (form) {
     form.addEventListener('submit', handleSubmit);
   }
+
+  // Pending captures badge management
+  const pendingBadge = document.getElementById('pending-badge');
+
+  async function updatePendingBadge() {
+    if (!pendingBadge) return;
+    try {
+      const count = await getPendingCount();
+      if (count > 0) {
+        pendingBadge.textContent = count > 99 ? '99+' : String(count);
+        pendingBadge.classList.remove('hidden');
+      } else {
+        pendingBadge.classList.add('hidden');
+      }
+    } catch (err) {
+      // Silently fail - badge is non-critical
+    }
+  }
+
+  // Listen for pending count changes
+  window.addEventListener('custos-pending-change', updatePendingBadge);
+
+  // Listen for sync completion
+  window.addEventListener('custos-sync-complete', (event) => {
+    const { synced, failed } = event.detail || {};
+    if (synced > 0) {
+      console.log(`[Capture] Synced ${synced} offline captures`);
+      if (typeof onSuccess === 'function') {
+        onSuccess();
+      }
+    }
+    if (failed > 0) {
+      console.warn(`[Capture] Failed to sync ${failed} captures`);
+    }
+    updatePendingBadge();
+  });
+
+  // Initial badge update
+  updatePendingBadge();
 }

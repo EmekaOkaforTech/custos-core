@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.db import get_db
+from app.db import add_audit_entry, get_db
 from app.models.meeting import Meeting
 
 router = APIRouter(prefix="/api/meetings", tags=["meetings"])
@@ -65,6 +65,16 @@ def update_meeting(meeting_id: str, payload: MeetingUpdateRequest, db: Session =
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="title must not be blank")
+
+    old_title = meeting.title
+
+    # Story 37.4: Track local override for calendar meetings
+    if meeting.source == "calendar" and title != meeting.title:
+        meeting.local_override = True
+        # Store original calendar value if not already stored
+        if meeting.calendar_title is None:
+            meeting.calendar_title = meeting.title
+
     meeting.title = title
     db.commit()
     db.refresh(meeting)
@@ -75,6 +85,71 @@ def update_meeting(meeting_id: str, payload: MeetingUpdateRequest, db: Session =
         ends_at=meeting.ends_at,
         source=meeting.source,
     )
+
+
+@router.post("/{meeting_id}/force-refresh")
+def force_refresh_meeting(meeting_id: str, db: Session = Depends(get_db)) -> dict:
+    """
+    Force refresh a meeting from calendar, discarding local overrides.
+
+    Story 37.4: Sync Conflict Resolution
+    """
+    meeting = db.get(Meeting, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+
+    if meeting.source != "calendar":
+        raise HTTPException(status_code=400, detail="Can only force-refresh calendar meetings")
+
+    if not meeting.local_override:
+        return {"refreshed": False, "message": "No local override to clear"}
+
+    # Restore calendar values
+    old_title = meeting.title
+    old_starts_at = meeting.starts_at
+    old_ends_at = meeting.ends_at
+
+    if meeting.calendar_title:
+        meeting.title = meeting.calendar_title
+    if meeting.calendar_starts_at:
+        meeting.starts_at = meeting.calendar_starts_at
+    if meeting.calendar_ends_at:
+        meeting.ends_at = meeting.calendar_ends_at
+
+    # Clear override tracking
+    meeting.local_override = False
+    meeting.calendar_title = None
+    meeting.calendar_starts_at = None
+    meeting.calendar_ends_at = None
+
+    # Audit log
+    add_audit_entry(
+        db,
+        action="meeting_force_refreshed",
+        entity_type="Meeting",
+        entity_id=meeting_id,
+        payload={
+            "old_title": old_title,
+            "old_starts_at": old_starts_at.isoformat() if old_starts_at else None,
+            "old_ends_at": old_ends_at.isoformat() if old_ends_at else None,
+            "restored_title": meeting.title,
+            "restored_starts_at": meeting.starts_at.isoformat() if meeting.starts_at else None,
+            "restored_ends_at": meeting.ends_at.isoformat() if meeting.ends_at else None,
+        },
+    )
+
+    db.commit()
+    db.refresh(meeting)
+
+    return {
+        "refreshed": True,
+        "meeting": {
+            "id": meeting.id,
+            "title": meeting.title,
+            "starts_at": meeting.starts_at,
+            "ends_at": meeting.ends_at,
+        },
+    }
 
 
 @router.get("")

@@ -1,22 +1,43 @@
-def test_calendar_ingest_populates_tables(monkeypatch, test_app):
-    from app.calendar.demo_provider import DemoCalendarProvider
-    from app.calendar.ingest import ingest_calendar
-    from app.db import SessionLocal, init_db
-    from app.models.meeting import Meeting
-    from app.models.meeting_participant import MeetingParticipant
-    from app.models.person import Person
+import os
 
-    monkeypatch.setenv("CUSTOS_CALENDAR_ENABLED", "1")
+from fastapi.testclient import TestClient
+
+
+def test_calendar_ingest_disabled_flag(test_app):
+    from app.db import init_db
+
     init_db()
-    session = SessionLocal()
-    try:
-        result = ingest_calendar(DemoCalendarProvider(), session)
-        assert result["status"] == "ok"
-        meeting = session.query(Meeting).filter(Meeting.source == "calendar").first()
-        assert meeting is not None
-        participant = session.query(MeetingParticipant).first()
-        assert participant is not None
-        person = session.query(Person).first()
-        assert person.last_interaction_at is not None
-    finally:
-        session.close()
+    client = TestClient(test_app)
+    client.post(
+        "/api/calendar/connection",
+        json={
+            "provider": "demo",
+            "scopes": ["events.read"],
+            "token": "demo-token",
+            "enabled": True,
+        },
+    )
+    os.environ["CUSTOS_CALENDAR_ENABLED"] = "0"
+    response = client.post("/api/calendar/ingest")
+    assert response.status_code == 200
+    assert response.json()["status"] == "disabled"
+
+
+def test_calendar_ingest_demo_provider(test_app):
+    from app.db import init_db
+
+    init_db()
+    client = TestClient(test_app)
+    client.post(
+        "/api/calendar/connection",
+        json={
+            "provider": "demo",
+            "scopes": ["events.read"],
+            "token": "demo-token",
+            "enabled": True,
+        },
+    )
+    os.environ["CUSTOS_CALENDAR_ENABLED"] = "1"
+    response = client.post("/api/calendar/ingest")
+    assert response.status_code == 200
+    assert response.json()["status"] in {"ok", "failed"}

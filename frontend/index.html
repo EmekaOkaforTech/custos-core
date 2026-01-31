@@ -6,8 +6,13 @@
   <title>Custos — Briefing</title>
   <meta name="description" content="Custos — calm, local-first meeting briefings and context." />
   <meta name="theme-color" content="#f5f1ea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Custos" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,13 +20,14 @@
     <div class="brand">
       <h1>Custos</h1>
       <span class="demo-badge hidden" id="demo-badge">Demo Mode</span>
+      <span class="offline-badge hidden" id="offline-badge">Offline</span>
     </div>
     <nav class="global-nav" aria-label="Primary">
       <a class="nav-link active" href="index.html" aria-current="page">Briefing</a>
       <a class="nav-link" href="people.html">People</a>
       <a class="nav-link" href="status.html">Status</a>
       <button class="nav-link nav-action" id="capture-quick" type="button">Quick capture</button>
-      <button class="nav-link nav-action" id="capture-open" type="button">Capture</button>
+      <button class="nav-link nav-action" id="capture-open" type="button">Capture<span class="pending-badge hidden" id="pending-badge">0</span></button>
     </nav>
   </header>
   <main class="container">
@@ -262,5 +268,19 @@
 
   <script src="config.js"></script>
   <script type="module" src="app.js"></script>
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('[Custos] Service Worker registered:', registration.scope);
+          })
+          .catch(error => {
+            console.warn('[Custos] Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

@@ -38,8 +38,10 @@ def test_worker_processes_job(test_app):
         assert source is not None
         assert commitment is not None
         assert commitment.text == "Blocked by vendor, due Friday"
+        assert commitment.rule_id
         assert len(flags) == 2
         flag_types = {flag.flag_type for flag in flags}
         assert flag_types == {"deadline_reference", "blocker_reference"}
+        assert all(flag.rule_id for flag in flags)
     finally:
         session.close()

@@ -128,3 +128,233 @@ export function computeBriefMeta({ cached, offline, updatedAt }) {
     statusText: `Updated ${formatted}`,
   };
 }
+
+// Briefing cache state
+let _briefingCache = null;
+
+export function setBriefingCache(data) {
+  _briefingCache = data;
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      sessionStorage.setItem('custos_briefing_cache', JSON.stringify(data));
+    } catch (e) {
+      // Session storage may be unavailable or full
+    }
+  }
+}
+
+export function getBriefingCache() {
+  if (_briefingCache) return _briefingCache;
+  if (typeof sessionStorage !== 'undefined') {
+    try {
+      const cached = sessionStorage.getItem('custos_briefing_cache');
+      if (cached) {
+        _briefingCache = JSON.parse(cached);
+        return _briefingCache;
+      }
+    } catch (e) {
+      // Parse error or storage unavailable
+    }
+  }
+  return null;
+}
+
+// Demo mode state
+let _demoMode = false;
+
+export function setDemoMode(enabled) {
+  _demoMode = Boolean(enabled);
+}
+
+export function getDemoMode() {
+  return _demoMode;
+}
+
+// Reflection closeout state
+export function setReflectionCloseout(dateStr) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('custos_reflection_closeout', dateStr || '');
+  }
+}
+
+export function getReflectionCloseout() {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('custos_reflection_closeout') || null;
+  }
+  return null;
+}
+
+// Capture form defaults state
+export function setCaptureDefaults(defaults) {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem('custos_capture_defaults', JSON.stringify(defaults));
+    } catch (e) {
+      // Storage may be unavailable or full
+    }
+  }
+}
+
+export function getCaptureDefaults() {
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('custos_capture_defaults');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      // Parse error or storage unavailable
+    }
+  }
+  return null;
+}
+
+export function clearCaptureDefaults() {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('custos_capture_defaults');
+  }
+}
+
+// Calendar consent state
+export function setCalendarConsent(granted) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('custos_calendar_consent', granted ? 'true' : 'false');
+  }
+}
+
+export function getCalendarConsent() {
+  if (typeof localStorage !== 'undefined') {
+    return localStorage.getItem('custos_calendar_consent') === 'true';
+  }
+  return false;
+}
+
+// ============================================================================
+// Epic 33: Briefing Mode (time-first vs person-first)
+// ============================================================================
+
+const BRIEFING_MODE_KEY = 'custos_briefing_mode';
+
+export function getBriefingMode() {
+  if (typeof localStorage === 'undefined') return 'time';
+  return localStorage.getItem(BRIEFING_MODE_KEY) || 'time';
+}
+
+export function setBriefingMode(mode) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(BRIEFING_MODE_KEY, mode === 'person' ? 'person' : 'time');
+  }
+}
+
+// ============================================================================
+// Epic 34: Care Context Mode
+// ============================================================================
+
+const CARE_MODE_KEY = 'custos_care_mode';
+
+export function getCareMode() {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(CARE_MODE_KEY) === 'true';
+}
+
+export function setCareMode(enabled) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(CARE_MODE_KEY, enabled ? 'true' : 'false');
+    // Disable professional mode if enabling care mode (mutually exclusive)
+    if (enabled) {
+      localStorage.setItem(PROFESSIONAL_MODE_KEY, 'false');
+    }
+  }
+}
+
+// ============================================================================
+// Epic 35: Professional Context Mode
+// ============================================================================
+
+const PROFESSIONAL_MODE_KEY = 'custos_professional_mode';
+
+export function getProfessionalMode() {
+  if (typeof localStorage === 'undefined') return false;
+  return localStorage.getItem(PROFESSIONAL_MODE_KEY) === 'true';
+}
+
+export function setProfessionalMode(enabled) {
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(PROFESSIONAL_MODE_KEY, enabled ? 'true' : 'false');
+    // Disable care mode if enabling professional mode (mutually exclusive)
+    if (enabled) {
+      localStorage.setItem(CARE_MODE_KEY, 'false');
+    }
+  }
+}
+
+// ============================================================================
+// Terminology (Epic 34/35)
+// ============================================================================
+
+export function getTerminology() {
+  if (getCareMode()) {
+    return {
+      meeting: 'Visit',
+      meetings: 'Visits',
+      person: 'Care recipient',
+      people: 'Care recipients',
+      commitment: 'Follow-up',
+      commitments: 'Follow-ups',
+      session: 'Visit',
+    };
+  }
+  if (getProfessionalMode()) {
+    return {
+      meeting: 'Session',
+      meetings: 'Sessions',
+      person: 'Client',
+      people: 'Clients',
+      commitment: 'Action item',
+      commitments: 'Action items',
+      session: 'Session',
+    };
+  }
+  return {
+    meeting: 'Meeting',
+    meetings: 'Meetings',
+    person: 'Person',
+    people: 'People',
+    commitment: 'Commitment',
+    commitments: 'Commitments',
+    session: 'Meeting',
+  };
+}
+
+// ============================================================================
+// Capture Types (Epic 34/35)
+// ============================================================================
+
+export function getCaptureTypes() {
+  const baseTypes = [
+    { value: 'notes', label: 'Notes' },
+    { value: 'transcript', label: 'Transcript' },
+    { value: 'decision', label: 'Decision' },
+    { value: 'follow-up', label: 'Follow-up' },
+    { value: 'reflection', label: 'Reflection' },
+  ];
+
+  if (getCareMode()) {
+    return [
+      ...baseTypes,
+      { value: 'observation', label: 'Observation' },
+      { value: 'symptom', label: 'Symptom' },
+      { value: 'mood', label: 'Mood' },
+      { value: 'medication', label: 'Medication' },
+    ];
+  }
+
+  if (getProfessionalMode()) {
+    return [
+      ...baseTypes,
+      { value: 'intake', label: 'Intake' },
+    ];
+  }
+
+  return baseTypes;
+}

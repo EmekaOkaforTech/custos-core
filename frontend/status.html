@@ -6,8 +6,13 @@
   <title>Custos — Status</title>
   <meta name="description" content="Custos — calm, local-first meeting briefings and context." />
   <meta name="theme-color" content="#f5f1ea" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Custos" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="icon-192.svg" />
+  <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,13 +20,14 @@
     <div class="brand">
       <h1>Custos</h1>
       <span class="demo-badge hidden" id="demo-badge">Demo Mode</span>
+      <span class="offline-badge hidden" id="offline-badge">Offline</span>
     </div>
     <nav class="global-nav" aria-label="Primary">
       <a class="nav-link" href="index.html">Briefing</a>
       <a class="nav-link" href="people.html">People</a>
       <a class="nav-link active" href="status.html" aria-current="page">Status</a>
       <button class="nav-link nav-action" id="capture-quick" type="button">Quick capture</button>
-      <button class="nav-link nav-action" id="capture-open" type="button">Capture</button>
+      <button class="nav-link nav-action" id="capture-open" type="button">Capture<span class="pending-badge hidden" id="pending-badge">0</span></button>
     </nav>
   </header>
   <main class="container">
@@ -69,12 +75,32 @@
       <p class="muted" id="demo-reset-status"></p>
     </section>
 
+    <section class="card" id="settings-card">
+      <div class="card-header-row">
+        <h3>Settings</h3>
+        <button class="button-link" id="settings-open">Configure</button>
+      </div>
+      <p class="muted" id="settings-summary">Standard mode</p>
+    </section>
+
     <section class="card" id="calendar-card">
       <h3>Calendar Connection</h3>
       <p class="muted" id="calendar-status">Calendar not connected yet.</p>
       <button class="button-link" id="calendar-connect">Connect calendar (read-only)</button>
       <button class="button-link" id="calendar-import">Run calendar import</button>
       <p class="muted" id="calendar-import-status"></p>
+    </section>
+
+    <section class="card hidden" id="pwa-install-card">
+      <h3>Install App</h3>
+      <p class="muted">Install Custos on your device for quick access and offline support.</p>
+      <ul class="pwa-install-benefits">
+        <li>Works offline with cached data</li>
+        <li>Quick access from home screen</li>
+        <li>Captures sync automatically when online</li>
+      </ul>
+      <button class="button-link" id="pwa-install">Install Custos</button>
+      <p class="muted" id="pwa-install-status"></p>
     </section>
 
     <section class="section" id="closure-section">
@@ -231,17 +257,128 @@
         </div>
 
         <div class="wizard-step hidden" data-step="3">
-          <h3>All set</h3>
-          <p class="muted">You can enable calendar import after confirming in the next step.</p>
-          <p class="muted" id="calendar-complete-status">Consent saved locally.</p>
+          <h3>Choose calendar provider</h3>
+          <p class="muted">Select your calendar service to authorize access.</p>
+          <div class="provider-options" id="calendar-providers">
+            <button type="button" class="provider-button" data-provider="google" id="provider-google">
+              <span class="provider-icon">📅</span>
+              <span class="provider-name">Google Calendar</span>
+              <span class="provider-status" id="google-status">Checking...</span>
+            </button>
+            <button type="button" class="provider-button" data-provider="microsoft" id="provider-microsoft">
+              <span class="provider-icon">📆</span>
+              <span class="provider-name">Microsoft Outlook</span>
+              <span class="provider-status" id="microsoft-status">Checking...</span>
+            </button>
+            <button type="button" class="provider-button" data-provider="demo" id="provider-demo">
+              <span class="provider-icon">🧪</span>
+              <span class="provider-name">Demo Calendar</span>
+              <span class="provider-status">For testing</span>
+            </button>
+          </div>
+          <p class="muted" id="calendar-provider-error"></p>
           <button type="button" class="button-link" data-calendar-back>Back</button>
+        </div>
+
+        <div class="wizard-step hidden" data-step="4">
+          <h3>Authorizing...</h3>
+          <p class="muted" id="calendar-auth-status">Opening authorization window...</p>
+          <p class="muted">Complete the sign-in in the popup window.</p>
+          <button type="button" class="button-link" data-calendar-back>Cancel</button>
+        </div>
+
+        <div class="wizard-step hidden" data-step="5">
+          <h3>All set</h3>
+          <p class="muted">Your calendar is now connected. Custos will sync events automatically.</p>
+          <p class="muted" id="calendar-complete-status">Connection saved.</p>
           <button type="button" class="button-link" data-calendar-finish>Finish</button>
         </div>
       </form>
     </div>
   </div>
 
+  <div class="modal" id="settings-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-settings-close></div>
+    <div class="modal-panel settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div class="modal-header">
+        <h2 id="settings-title">Settings</h2>
+        <button class="icon-button" id="settings-close" type="button" aria-label="Close settings">×</button>
+      </div>
+      <div class="modal-body settings-body">
+        <section class="settings-section">
+          <h3>Briefing Layout</h3>
+          <p class="muted">Choose how your briefing is organized.</p>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="briefing-mode" value="time" id="briefing-mode-time" />
+              <div class="option-content">
+                <span class="option-title">Time-first</span>
+                <span class="option-desc">Organize by upcoming meetings and time</span>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="briefing-mode" value="person" id="briefing-mode-person" />
+              <div class="option-content">
+                <span class="option-title">Person-first</span>
+                <span class="option-desc">Organize by people with open commitments</span>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Context Mode</h3>
+          <p class="muted">Adapt terminology and capture types for your use case.</p>
+          <div class="settings-options">
+            <label class="settings-option">
+              <input type="radio" name="context-mode" value="standard" id="context-mode-standard" />
+              <div class="option-content">
+                <span class="option-title">Standard</span>
+                <span class="option-desc">Meetings, People, Commitments</span>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="context-mode" value="care" id="context-mode-care" />
+              <div class="option-content">
+                <span class="option-title">Care</span>
+                <span class="option-desc">Visits, Care recipients, Follow-ups</span>
+                <span class="option-extra">Adds: observation, symptom, mood, medication capture types</span>
+              </div>
+            </label>
+            <label class="settings-option">
+              <input type="radio" name="context-mode" value="professional" id="context-mode-professional" />
+              <div class="option-content">
+                <span class="option-title">Professional</span>
+                <span class="option-desc">Sessions, Clients, Action items</span>
+                <span class="option-extra">Adds: intake capture type</span>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        <div class="modal-actions">
+          <button type="button" class="button-primary" id="settings-save">Save settings</button>
+          <button type="button" class="button-link" data-settings-close>Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js"></script>
   <script type="module" src="status.js"></script>
+  <script>
+    // Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('[Custos] Service Worker registered:', registration.scope);
+          })
+          .catch(error => {
+            console.warn('[Custos] Service Worker registration failed:', error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>

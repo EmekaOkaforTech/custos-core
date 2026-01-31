@@ -3,13 +3,19 @@ import {
   formatDate,
   getApiBase,
   getApiHeaders,
+  getBriefingMode,
   getCalendarConsent,
+  getCareMode,
   getDemoMode,
+  getProfessionalMode,
   getStoredApiKey,
   isSetupComplete,
   isSeedIdentifier,
+  setBriefingMode,
   setCalendarConsent,
+  setCareMode,
   setDemoMode,
+  setProfessionalMode,
 } from './ui-state.js';
 import { initCapture } from './capture.js';
 
@@ -46,6 +52,13 @@ const calendarStatusText = document.getElementById('calendar-current-status');
 const calendarConsent = document.getElementById('calendar-consent');
 const calendarConsentError = document.getElementById('calendar-consent-error');
 const calendarCompleteStatus = document.getElementById('calendar-complete-status');
+const calendarProviderError = document.getElementById('calendar-provider-error');
+const calendarAuthStatus = document.getElementById('calendar-auth-status');
+const providerGoogle = document.getElementById('provider-google');
+const providerMicrosoft = document.getElementById('provider-microsoft');
+const providerDemo = document.getElementById('provider-demo');
+const googleStatus = document.getElementById('google-status');
+const microsoftStatus = document.getElementById('microsoft-status');
 const closureSection = document.getElementById('closure-section');
 const closureCards = document.getElementById('closure-cards');
 const closureGroupMeeting = document.getElementById('closure-group-meeting');
@@ -119,23 +132,237 @@ function setWizardStep(step) {
   }
 }
 
-function updateCalendarStatus(statusData) {
+function updateCalendarStatus(statusData, connectionData) {
   if (!calendarStatus) return;
   const calendar = statusData?.calendar_status || {};
   const enabled = Boolean(calendar.enabled);
-  const lastSuccess = calendar.last_success ? formatDate(calendar.last_success) : 'no recent sync';
-  calendarStatus.textContent = enabled
-    ? `Connected · Last sync ${lastSuccess}`
-    : 'Calendar not connected yet.';
+  const provider = calendar.provider || connectionData?.provider || null;
+
+  // Use connection data for sync info if available (Story 37.2)
+  const lastSyncAt = connectionData?.last_sync_at;
+  const syncError = connectionData?.sync_error;
+  const lastSuccess = lastSyncAt ? formatDate(lastSyncAt) : (calendar.last_success ? formatDate(calendar.last_success) : null);
+
+  if (enabled && provider) {
+    const providerName = provider === 'google' ? 'Google Calendar' :
+                        provider === 'microsoft' ? 'Microsoft Outlook' :
+                        provider === 'demo' ? 'Demo Calendar' : provider;
+
+    // Build status text with sync info
+    let statusText = `${providerName} connected`;
+    if (syncError) {
+      statusText += ` · Sync error: ${syncError}`;
+    } else if (lastSuccess) {
+      statusText += ` · Last sync ${lastSuccess}`;
+    } else {
+      statusText += ' · No recent sync';
+    }
+    calendarStatus.textContent = statusText;
+
+    if (calendarConnect) {
+      calendarConnect.textContent = 'Disconnect calendar';
+    }
+  } else {
+    calendarStatus.textContent = 'Calendar not connected yet.';
+    if (calendarConnect) {
+      calendarConnect.textContent = 'Connect calendar (read-only)';
+    }
+  }
+
   if (calendarImport) {
     calendarImport.disabled = !enabled;
+    // Update button text based on state
+    if (syncError && enabled) {
+      calendarImport.textContent = 'Retry sync';
+    } else {
+      calendarImport.textContent = 'Sync now';
+    }
   }
   if (calendarStatusText) {
-    calendarStatusText.textContent = enabled
-      ? `Current status: connected (last sync ${lastSuccess})`
-      : 'Current status: not connected';
+    let statusDetail = 'Current status: not connected';
+    if (enabled) {
+      statusDetail = `Current status: ${provider || 'connected'}`;
+      if (syncError) {
+        statusDetail += ` (error: ${syncError})`;
+      } else if (lastSuccess) {
+        statusDetail += ` (last sync ${lastSuccess})`;
+      }
+    }
+    calendarStatusText.textContent = statusDetail;
   }
 }
+
+// OAuth provider status tracking
+let oauthStatus = { google_configured: false, microsoft_configured: false };
+let oauthPopup = null;
+
+async function checkOAuthStatus() {
+  try {
+    const response = await fetch(apiUrl('/api/calendar/oauth/status'), { headers: getApiHeaders() });
+    if (response.ok) {
+      oauthStatus = await response.json();
+    }
+  } catch (err) {
+    // Silently fail - OAuth may not be configured
+  }
+  updateProviderButtons();
+}
+
+function updateProviderButtons() {
+  if (googleStatus) {
+    if (oauthStatus.google_configured) {
+      googleStatus.textContent = 'Available';
+      googleStatus.classList.add('available');
+      googleStatus.classList.remove('unavailable');
+      if (providerGoogle) providerGoogle.disabled = false;
+    } else {
+      googleStatus.textContent = 'Not configured';
+      googleStatus.classList.add('unavailable');
+      googleStatus.classList.remove('available');
+      if (providerGoogle) providerGoogle.disabled = true;
+    }
+  }
+  if (microsoftStatus) {
+    if (oauthStatus.microsoft_configured) {
+      microsoftStatus.textContent = 'Available';
+      microsoftStatus.classList.add('available');
+      microsoftStatus.classList.remove('unavailable');
+      if (providerMicrosoft) providerMicrosoft.disabled = false;
+    } else {
+      microsoftStatus.textContent = 'Not configured';
+      microsoftStatus.classList.add('unavailable');
+      microsoftStatus.classList.remove('available');
+      if (providerMicrosoft) providerMicrosoft.disabled = true;
+    }
+  }
+}
+
+async function startOAuthFlow(provider) {
+  if (calendarAuthStatus) {
+    calendarAuthStatus.textContent = `Connecting to ${provider}...`;
+  }
+  setWizardStep(4);
+
+  try {
+    const response = await fetch(apiUrl(`/api/calendar/oauth/authorize?provider=${encodeURIComponent(provider)}`), {
+      method: 'GET',
+      headers: getApiHeaders(),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      if (calendarProviderError) {
+        calendarProviderError.textContent = data.detail || 'Failed to start authorization';
+      }
+      setWizardStep(3);
+      return;
+    }
+
+    const data = await response.json();
+    if (calendarAuthStatus) {
+      calendarAuthStatus.textContent = 'Opening authorization window...';
+    }
+
+    // Open OAuth popup
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    oauthPopup = window.open(
+      data.authorization_url,
+      'custos_oauth',
+      `width=${width},height=${height},left=${left},top=${top},popup=yes`
+    );
+
+    if (!oauthPopup) {
+      if (calendarProviderError) {
+        calendarProviderError.textContent = 'Popup was blocked. Please allow popups for this site.';
+      }
+      setWizardStep(3);
+    }
+  } catch (err) {
+    if (calendarProviderError) {
+      calendarProviderError.textContent = 'Network error. Please try again.';
+    }
+    setWizardStep(3);
+  }
+}
+
+async function connectDemoCalendar() {
+  try {
+    const response = await fetch(apiUrl('/api/calendar/connection'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getApiHeaders() },
+      body: JSON.stringify({
+        provider: 'demo',
+        scopes: ['read'],
+        token: 'demo-token',
+        enabled: true,
+      }),
+    });
+
+    if (response.ok) {
+      if (calendarCompleteStatus) {
+        calendarCompleteStatus.textContent = 'Demo calendar connected.';
+      }
+      setWizardStep(5);
+      loadStatus();
+    } else {
+      const data = await response.json();
+      if (calendarProviderError) {
+        calendarProviderError.textContent = data.detail || 'Failed to connect demo calendar';
+      }
+    }
+  } catch (err) {
+    if (calendarProviderError) {
+      calendarProviderError.textContent = 'Network error. Please try again.';
+    }
+  }
+}
+
+async function disconnectCalendar() {
+  try {
+    const response = await fetch(apiUrl('/api/calendar/connection'), {
+      method: 'DELETE',
+      headers: getApiHeaders(),
+    });
+
+    if (response.ok) {
+      if (calendarStatus) {
+        calendarStatus.textContent = 'Calendar disconnected.';
+      }
+      loadStatus();
+    }
+  } catch (err) {
+    // Silently fail
+  }
+}
+
+// Listen for OAuth callback messages
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin) return;
+
+  if (event.data?.type === 'oauth-success') {
+    if (calendarCompleteStatus) {
+      calendarCompleteStatus.textContent = `${event.data.provider} calendar connected successfully!`;
+    }
+    setWizardStep(5);
+    loadStatus();
+    if (oauthPopup) {
+      oauthPopup.close();
+      oauthPopup = null;
+    }
+  } else if (event.data?.type === 'oauth-error') {
+    if (calendarProviderError) {
+      calendarProviderError.textContent = event.data.error || 'Authorization failed';
+    }
+    setWizardStep(3);
+    if (oauthPopup) {
+      oauthPopup.close();
+      oauthPopup = null;
+    }
+  }
+});
 
 function statusLabelForCommitment(item) {
   if (item.needs_attention) {
@@ -554,6 +781,17 @@ async function loadStatus() {
   const statusResponse = await fetch(apiUrl('/api/status'), { headers: getApiHeaders() });
   const statusData = await statusResponse.json();
 
+  // Fetch calendar connection for sync status (Story 37.2)
+  let connectionData = null;
+  try {
+    const connectionResponse = await fetch(apiUrl('/api/calendar/connection'), { headers: getApiHeaders() });
+    if (connectionResponse.ok) {
+      connectionData = await connectionResponse.json();
+    }
+  } catch (err) {
+    // Silently fail - connection may not exist
+  }
+
   const backupStatus = statusData.backup_last_status || {};
   const storageStatus = statusData.storage || {};
   const recoveryStatus = statusData.recovery_check || { status: 'unknown', last_restore: null };
@@ -594,12 +832,15 @@ async function loadStatus() {
   }
 
   backupAction.classList.toggle('hidden', !backupFailed);
-  updateCalendarStatus(statusData);
+  updateCalendarStatus(statusData, connectionData);
 }
 
 loadStatus().catch(() => {
   setBanner('error', 'Unable to load system status. Check local connectivity.');
 });
+
+// Check OAuth provider availability on load
+checkOAuthStatus();
 
 backupAction.addEventListener('click', async () => {
   await fetch(apiUrl('/api/status/actions'), {
@@ -655,7 +896,16 @@ if (closureGroupPerson) {
 }
 
 if (calendarConnect && calendarModal) {
-  calendarConnect.addEventListener('click', () => {
+  calendarConnect.addEventListener('click', async () => {
+    // Check if already connected (button text indicates disconnect)
+    if (calendarConnect.textContent.toLowerCase().includes('disconnect')) {
+      if (confirm('Are you sure you want to disconnect your calendar?')) {
+        await disconnectCalendar();
+      }
+      return;
+    }
+
+    // Start connection wizard
     setWizardStep(1);
     if (calendarConsent) {
       calendarConsent.checked = getCalendarConsent();
@@ -663,6 +913,11 @@ if (calendarConnect && calendarModal) {
     if (calendarConsentError) {
       calendarConsentError.textContent = '';
     }
+    if (calendarProviderError) {
+      calendarProviderError.textContent = '';
+    }
+    // Pre-check OAuth status
+    checkOAuthStatus();
     setCalendarModalOpen(true);
   });
 }
@@ -718,6 +973,22 @@ if (calendarForm) {
   calendarForm.addEventListener('click', event => {
     const target = event.target;
     if (!target) return;
+
+    // Handle provider button clicks
+    const providerButton = target.closest('.provider-button');
+    if (providerButton && !providerButton.disabled) {
+      const provider = providerButton.dataset.provider;
+      if (calendarProviderError) {
+        calendarProviderError.textContent = '';
+      }
+      if (provider === 'demo') {
+        connectDemoCalendar();
+      } else if (provider === 'google' || provider === 'microsoft') {
+        startOAuthFlow(provider);
+      }
+      return;
+    }
+
     if (target.hasAttribute('data-calendar-next')) {
       const current = calendarForm.querySelector('.wizard-step:not(.hidden)');
       const step = Number(current?.dataset?.step || 1);
@@ -729,16 +1000,17 @@ if (calendarForm) {
           return;
         }
         setCalendarConsent(true);
-        if (calendarCompleteStatus) {
-          calendarCompleteStatus.textContent = 'Consent saved locally.';
-        }
+        // Check OAuth status before showing provider selection
+        checkOAuthStatus();
       }
       setWizardStep(step + 1);
     }
     if (target.hasAttribute('data-calendar-back')) {
       const current = calendarForm.querySelector('.wizard-step:not(.hidden)');
       const step = Number(current?.dataset?.step || 1);
-      setWizardStep(Math.max(step - 1, 1));
+      // Skip step 4 (authorization) when going back
+      const nextStep = step === 4 ? 3 : Math.max(step - 1, 1);
+      setWizardStep(nextStep);
     }
     if (target.hasAttribute('data-calendar-finish')) {
       setCalendarModalOpen(false);
@@ -774,5 +1046,258 @@ if (demoResetButton) {
     setDemoBadge(true);
     setDemoResetVisibility(true);
     loadStatus();
+  });
+}
+
+// Offline indicator management
+const offlineBadge = document.getElementById('offline-badge');
+
+function updateOfflineIndicator() {
+  if (!offlineBadge) return;
+  const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+  offlineBadge.classList.toggle('hidden', !isOffline);
+}
+
+window.addEventListener('online', () => {
+  updateOfflineIndicator();
+  loadStatus().catch(() => {});
+});
+
+window.addEventListener('offline', updateOfflineIndicator);
+
+updateOfflineIndicator();
+
+// PWA Install prompt management
+const pwaInstallCard = document.getElementById('pwa-install-card');
+const pwaInstallButton = document.getElementById('pwa-install');
+const pwaInstallStatus = document.getElementById('pwa-install-status');
+
+let deferredInstallPrompt = null;
+
+// Debug mode: add ?pwa-debug=1 to URL to force-show install card
+const urlParams = new URLSearchParams(window.location.search);
+const pwaDebugMode = urlParams.get('pwa-debug') === '1';
+
+function updatePwaInstallVisibility() {
+  if (!pwaInstallCard) return;
+
+  // Debug mode: always show the card for testing
+  if (pwaDebugMode) {
+    pwaInstallCard.classList.remove('hidden');
+    if (pwaInstallStatus) {
+      pwaInstallStatus.textContent = 'Debug mode: Install requires HTTPS or localhost.';
+    }
+    return;
+  }
+
+  // Hide if already installed (running in standalone mode)
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true;
+
+  if (isStandalone) {
+    pwaInstallCard.classList.add('hidden');
+    return;
+  }
+
+  // Show only if we have a deferred install prompt
+  if (deferredInstallPrompt) {
+    pwaInstallCard.classList.remove('hidden');
+  }
+}
+
+// Capture the install prompt event
+window.addEventListener('beforeinstallprompt', (event) => {
+  // Prevent the default browser prompt
+  event.preventDefault();
+  // Store for later use
+  deferredInstallPrompt = event;
+  // Show our custom install UI
+  updatePwaInstallVisibility();
+  console.log('[Custos] PWA install prompt available');
+});
+
+// Handle install button click
+if (pwaInstallButton) {
+  pwaInstallButton.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) {
+      if (pwaInstallStatus) {
+        pwaInstallStatus.textContent = 'Install not available. Try adding to home screen manually.';
+      }
+      return;
+    }
+
+    // Show the install prompt
+    deferredInstallPrompt.prompt();
+
+    // Wait for the user's response
+    const { outcome } = await deferredInstallPrompt.userChoice;
+
+    if (outcome === 'accepted') {
+      if (pwaInstallStatus) {
+        pwaInstallStatus.textContent = 'Installing Custos...';
+      }
+      console.log('[Custos] User accepted PWA install');
+    } else {
+      if (pwaInstallStatus) {
+        pwaInstallStatus.textContent = 'Installation cancelled.';
+      }
+      console.log('[Custos] User dismissed PWA install');
+    }
+
+    // Clear the deferred prompt - it can only be used once
+    deferredInstallPrompt = null;
+    updatePwaInstallVisibility();
+  });
+}
+
+// Listen for successful installation
+window.addEventListener('appinstalled', () => {
+  console.log('[Custos] PWA installed successfully');
+  deferredInstallPrompt = null;
+  if (pwaInstallCard) {
+    pwaInstallCard.classList.add('hidden');
+  }
+  if (pwaInstallStatus) {
+    pwaInstallStatus.textContent = 'Custos installed successfully!';
+  }
+});
+
+// Check initial PWA state
+updatePwaInstallVisibility();
+
+// ============================================================================
+// Settings Modal (Epics 33, 34, 35)
+// ============================================================================
+
+const settingsCard = document.getElementById('settings-card');
+const settingsOpen = document.getElementById('settings-open');
+const settingsModal = document.getElementById('settings-modal');
+const settingsClose = document.getElementById('settings-close');
+const settingsSave = document.getElementById('settings-save');
+const settingsSummary = document.getElementById('settings-summary');
+
+// Radio buttons
+const briefingModeTime = document.getElementById('briefing-mode-time');
+const briefingModePerson = document.getElementById('briefing-mode-person');
+const contextModeStandard = document.getElementById('context-mode-standard');
+const contextModeCare = document.getElementById('context-mode-care');
+const contextModeProfessional = document.getElementById('context-mode-professional');
+
+function getSettingsSummaryText() {
+  const briefing = getBriefingMode();
+  const care = getCareMode();
+  const professional = getProfessionalMode();
+
+  const parts = [];
+
+  // Briefing mode
+  if (briefing === 'person') {
+    parts.push('Person-first briefing');
+  } else {
+    parts.push('Time-first briefing');
+  }
+
+  // Context mode
+  if (care) {
+    parts.push('Care mode');
+  } else if (professional) {
+    parts.push('Professional mode');
+  } else {
+    parts.push('Standard mode');
+  }
+
+  return parts.join(' · ');
+}
+
+function updateSettingsSummary() {
+  if (settingsSummary) {
+    settingsSummary.textContent = getSettingsSummaryText();
+  }
+}
+
+function loadSettingsToModal() {
+  // Load current briefing mode
+  const briefing = getBriefingMode();
+  if (briefingModeTime) briefingModeTime.checked = briefing !== 'person';
+  if (briefingModePerson) briefingModePerson.checked = briefing === 'person';
+
+  // Load current context mode
+  const care = getCareMode();
+  const professional = getProfessionalMode();
+  if (contextModeStandard) contextModeStandard.checked = !care && !professional;
+  if (contextModeCare) contextModeCare.checked = care;
+  if (contextModeProfessional) contextModeProfessional.checked = professional;
+}
+
+function saveSettingsFromModal() {
+  // Save briefing mode
+  if (briefingModePerson?.checked) {
+    setBriefingMode('person');
+  } else {
+    setBriefingMode('time');
+  }
+
+  // Save context mode (mutually exclusive)
+  if (contextModeCare?.checked) {
+    setCareMode(true);
+    setProfessionalMode(false);
+  } else if (contextModeProfessional?.checked) {
+    setCareMode(false);
+    setProfessionalMode(true);
+  } else {
+    setCareMode(false);
+    setProfessionalMode(false);
+  }
+
+  updateSettingsSummary();
+}
+
+function setSettingsModalOpen(open) {
+  if (!settingsModal) return;
+  settingsModal.classList.toggle('open', open);
+  settingsModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+
+  if (open) {
+    loadSettingsToModal();
+  }
+}
+
+// Initialize settings summary
+updateSettingsSummary();
+
+// Settings modal event listeners
+if (settingsOpen) {
+  settingsOpen.addEventListener('click', () => {
+    setSettingsModalOpen(true);
+  });
+}
+
+if (settingsClose) {
+  settingsClose.addEventListener('click', () => {
+    setSettingsModalOpen(false);
+  });
+}
+
+if (settingsSave) {
+  settingsSave.addEventListener('click', () => {
+    saveSettingsFromModal();
+    setSettingsModalOpen(false);
+    // Reload page to apply terminology changes throughout
+    window.location.reload();
+  });
+}
+
+if (settingsModal) {
+  settingsModal.addEventListener('click', (event) => {
+    if (event.target?.hasAttribute('data-settings-close')) {
+      setSettingsModalOpen(false);
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && settingsModal.classList.contains('open')) {
+      setSettingsModalOpen(false);
+    }
   });
 }

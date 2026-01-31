@@ -1,15 +1,23 @@
-from datetime import datetime
-
-from sqlalchemy import Boolean, Column, DateTime, String, Text
+from sqlalchemy import Boolean, CheckConstraint, Column, DateTime, String, Text
 
 from .base import Base
+from app.utils.datetime import utcnow
 
 
 class IngestionJob(Base):
+    """Ingestion job for processing captured context."""
+
     __tablename__ = "ingestion_job"
+    __table_args__ = (
+        CheckConstraint(
+            "(meeting_id IS NOT NULL) OR (person_id IS NOT NULL)",
+            name="ck_ingestion_job_has_context",
+        ),
+    )
 
     id = Column(String, primary_key=True)
-    meeting_id = Column(String, nullable=False)
+    meeting_id = Column(String, nullable=True)  # Nullable for person-direct notes
+    person_id = Column(String, nullable=True)  # Epic 32: direct person notes
     payload = Column(Text, nullable=False)
     capture_type = Column(String, nullable=False)
     people_ids = Column(Text, nullable=True)
@@ -22,4 +30,4 @@ class IngestionJob(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)

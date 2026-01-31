@@ -71,3 +71,40 @@ def get_cors_origins() -> list[str]:
             "http://192.168.10.50:5173",
         ]
     return []
+
+
+# OAuth Settings - Epic 37: Live Calendar Sync
+
+def get_google_client_id() -> str:
+    """Get Google OAuth client ID."""
+    return os.getenv("CUSTOS_GOOGLE_CLIENT_ID", "").strip()
+
+
+def get_google_client_secret() -> str:
+    """Get Google OAuth client secret."""
+    return os.getenv("CUSTOS_GOOGLE_CLIENT_SECRET", "").strip()
+
+
+def get_microsoft_client_id() -> str:
+    """Get Microsoft OAuth client ID."""
+    return os.getenv("CUSTOS_MICROSOFT_CLIENT_ID", "").strip()
+
+
+def get_microsoft_client_secret() -> str:
+    """Get Microsoft OAuth client secret."""
+    return os.getenv("CUSTOS_MICROSOFT_CLIENT_SECRET", "").strip()
+
+
+def get_oauth_redirect_uri() -> str:
+    """Get OAuth redirect URI."""
+    return os.getenv("CUSTOS_OAUTH_REDIRECT_URI", "http://localhost:5173/oauth-callback.html").strip()
+
+
+def is_google_oauth_configured() -> bool:
+    """Check if Google OAuth credentials are configured."""
+    return bool(get_google_client_id() and get_google_client_secret())
+
+
+def is_microsoft_oauth_configured() -> bool:
+    """Check if Microsoft OAuth credentials are configured."""
+    return bool(get_microsoft_client_id() and get_microsoft_client_secret())
