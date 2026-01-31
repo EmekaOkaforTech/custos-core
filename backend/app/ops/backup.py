@@ -14,6 +14,14 @@ def _status_path() -> Path:
     return Path(get_data_dir()) / STATUS_FILE
 
 
+def _load_status() -> dict:
+    status_file = _status_path()
+    if status_file.exists():
+        with status_file.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    return {"status": "unknown", "last_success": None, "last_attempt": None, "last_restore": None}
+
+
 def _write_status(payload: dict) -> None:
     data_dir = Path(get_data_dir())
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -67,6 +75,95 @@ def create_backup() -> dict:
     }
     _write_status(payload)
     return payload
+
+
+def _copy_to_target(backup_path: Path, meta_path: Path, mount_path: Path) -> dict:
+    mount_path.mkdir(parents=True, exist_ok=True)
+    target_backup = mount_path / backup_path.name
+    target_meta = mount_path / meta_path.name
+    copy2(backup_path, target_backup)
+    copy2(meta_path, target_meta)
+    return {
+        "path": str(target_backup),
+        "meta_path": str(target_meta),
+        "checksum": _checksum(target_backup),
+    }
+
+
+def run_nas_backup(mount_path: str) -> dict:
+    local_status = create_backup()
+    nas_status = {
+        "status": "skipped",
+        "last_attempt": datetime.utcnow().isoformat(),
+        "last_success": None,
+        "path": None,
+        "meta_path": None,
+        "checksum": None,
+        "error": None,
+    }
+    if local_status.get("status") != "succeeded":
+        nas_status["status"] = "failed"
+        nas_status["error"] = "local_backup_failed"
+    else:
+        try:
+            backup_path = Path(local_status["path"])
+            meta_path = Path(local_status["meta_path"])
+            copied = _copy_to_target(backup_path, meta_path, Path(mount_path))
+            nas_status.update(
+                {
+                    "status": "succeeded",
+                    "last_success": datetime.utcnow().isoformat(),
+                    "path": copied["path"],
+                    "meta_path": copied["meta_path"],
+                    "checksum": copied["checksum"],
+                }
+            )
+        except Exception as exc:
+            nas_status["status"] = "failed"
+            nas_status["error"] = str(exc)
+
+    status_payload = _load_status()
+    status_payload["nas"] = nas_status
+    _write_status(status_payload)
+    return {"local": local_status, "nas": nas_status}
+
+
+def verify_nas_backup(mount_path: str) -> dict:
+    status_payload = _load_status()
+    nas = status_payload.get("nas") or {}
+    path = nas.get("path")
+    meta_path = nas.get("meta_path")
+    result = {
+        "status": "failed",
+        "last_attempt": datetime.utcnow().isoformat(),
+        "path": path,
+        "meta_path": meta_path,
+        "error": None,
+    }
+    if not path or not meta_path:
+        result["error"] = "nas_backup_missing"
+        status_payload["nas_verify"] = result
+        _write_status(status_payload)
+        return result
+    backup_path = Path(path)
+    meta = Path(meta_path)
+    if not backup_path.exists() or not meta.exists():
+        result["error"] = "nas_backup_missing"
+    else:
+        try:
+            checksum = _checksum(backup_path)
+            with meta.open("r", encoding="utf-8") as handle:
+                meta_data = json.load(handle)
+            if meta_data.get("checksum") != checksum:
+                result["error"] = "checksum_mismatch"
+            else:
+                result["status"] = "succeeded"
+                result["checksum"] = checksum
+        except Exception as exc:
+            result["error"] = str(exc)
+    status_payload["nas_verify"] = result
+    _write_status(status_payload)
+    return result
 
 
 if __name__ == "__main__":

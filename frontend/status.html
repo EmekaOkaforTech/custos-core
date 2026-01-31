@@ -101,7 +101,41 @@
       </ul>
       <button class="button-link" id="pwa-install">Install Custos</button>
       <p class="muted" id="pwa-install-status"></p>
+    
+    <section class="card" id="nas-backup-card">
+      <h3>NAS Backup</h3>
+      <p class="muted" id="nas-backup-status">NAS backup not configured.</p>
+      <form class="filters" id="nas-backup-form">
+        <label for="nas-backup-protocol">Protocol</label>
+        <select id="nas-backup-protocol" name="protocol">
+          <option value="smb">SMB</option>
+          <option value="nfs">NFS</option>
+        </select>
+        <label for="nas-backup-host">Host (optional)</label>
+        <input id="nas-backup-host" name="host" placeholder="192.168.1.10" />
+        <label for="nas-backup-share">Share/path (optional)</label>
+        <input id="nas-backup-share" name="share" placeholder="share or /exports/backups" />
+        <label for="nas-backup-mount">Mount path</label>
+        <input id="nas-backup-mount" name="mount_path" placeholder="/mnt/nas" />
+        <label for="nas-backup-username">Username (optional)</label>
+        <input id="nas-backup-username" name="username" />
+        <label for="nas-backup-password">Password (optional)</label>
+        <input id="nas-backup-password" name="password" type="password" />
+        <label class="checkbox-row">
+          <input id="nas-backup-enabled" type="checkbox" />
+          Enable NAS backup
+        </label>
+        <div class="tag-input">
+          <button type="submit">Save</button>
+          <button type="button" class="button-link" id="nas-backup-run">Run backup now</button>
+          <button type="button" class="button-link" id="nas-backup-verify">Verify restore</button>
+        </div>
+        <p class="muted" id="nas-backup-help">NAS share must be mounted locally at the mount path.</p>
+        <p class="muted" id="nas-backup-message"></p>
+      </form>
     </section>
+
+</section>
 
     <section class="section" id="closure-section">
       <div class="section-header">

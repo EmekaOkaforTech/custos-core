@@ -15,7 +15,7 @@ from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
 from app.models.source_record import SourceRecord
 from app.models.ingestion_job import IngestionJob
-from app.ops.backup import _status_path, create_backup
+from app.ops.backup import _status_path, _load_status, create_backup
 from app.settings import allow_plaintext_db
 from app.calendar.status import read_status as read_calendar_status
 
@@ -51,11 +51,8 @@ def status(db: Session = Depends(get_db)) -> dict:
     calendar_status = read_calendar_status()
     calendar_error = calendar_status.get("last_error")
     health = "attention" if error_count or calendar_error else "healthy"
-    backup_status = {"status": "unknown", "last_success": None, "last_attempt": None, "last_restore": None}
-    status_file = _status_path()
-    if status_file.exists():
-        with status_file.open("r", encoding="utf-8") as handle:
-            backup_status = json.load(handle)
+    backup_status = _load_status()
+    nas_backup_status = backup_status.get("nas", {"status": "unknown", "last_success": None, "last_attempt": None, "path": None})
 
     return {
         "health": health,
@@ -64,6 +61,7 @@ def status(db: Session = Depends(get_db)) -> dict:
         "ingestion_last_run": last_run,
         "ingestion_last_success": last_success,
         "backup_last_status": backup_status,
+        "nas_backup_status": nas_backup_status,
         "calendar_status": calendar_status,
         "error_count": error_count,
         "updated_at": now,

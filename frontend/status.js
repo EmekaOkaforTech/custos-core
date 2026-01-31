@@ -774,6 +774,34 @@ statusToggle.addEventListener('click', () => {
   statusToggle.setAttribute('aria-expanded', next ? 'true' : 'false');
 });
 
+function updateNasBackupStatus(statusData) {
+  if (!nasBackupStatus) return;
+  const nas = statusData?.nas_backup_status || {};
+  if (!nas.status || nas.status === "unknown") {
+    nasBackupStatus.textContent = "NAS backup not configured.";
+    return;
+  }
+  const lastAttempt = formatDate(nas.last_attempt);
+  nasBackupStatus.textContent = "NAS backup: " + nas.status + " (last attempt " + lastAttempt + ")";
+}
+
+async function loadNasTarget() {
+  if (!nasBackupForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/backup/target"), { headers: getApiHeaders() });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (nasBackupProtocol) nasBackupProtocol.value = data.protocol || "smb";
+    if (nasBackupHost) nasBackupHost.value = data.host || "";
+    if (nasBackupShare) nasBackupShare.value = data.share || "";
+    if (nasBackupMount) nasBackupMount.value = data.mount_path || "";
+    if (nasBackupUsername) nasBackupUsername.value = data.username || "";
+    if (nasBackupEnabled) nasBackupEnabled.checked = Boolean(data.enabled);
+  } catch (err) {
+    // ignore
+  }
+}
+
 async function loadStatus() {
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
