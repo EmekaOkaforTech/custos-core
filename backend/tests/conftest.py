@@ -27,6 +27,22 @@ def test_app(tmp_path):
     os.environ["CUSTOS_ALLOW_PLAINTEXT_DB"] = "1"
     os.environ["CUSTOS_DATABASE_KEY"] = "test-key"
     reload_app_modules()
+    from app.db import init_db
     from app.main import app
 
+    # Initialize database schema
+    init_db()
+
     return app
+
+
+@pytest.fixture()
+def test_db(test_app):
+    """Provide a database session for testing."""
+    from app.db import SessionLocal
+
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

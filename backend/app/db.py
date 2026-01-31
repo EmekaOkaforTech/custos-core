@@ -99,3 +99,24 @@ def _audit_entry(action, obj):
         entity_type=entity_type,
         entity_id=entity_id,
     )
+
+
+def add_audit_entry(
+    db,
+    action: str,
+    entity_type: str,
+    entity_id: str,
+    payload: dict | None = None,
+    actor: str = "system",
+):
+    """Add an explicit audit log entry with custom action and payload."""
+    import json
+    entry = AuditLog(
+        id=f"al_{uuid4().hex}",
+        actor=actor,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        payload=json.dumps(payload) if payload else None,
+    )
+    db.add(entry)

@@ -30,6 +30,7 @@ def seed_meeting(session, title, starts_at, source_age_days=None):
             due_at=None,
             acknowledged=False,
             source_id=source_id,
+            rule_id="commitment_first_line",
         )
         session.add(commitment)
     session.commit()
@@ -68,12 +69,18 @@ def test_briefings_next_includes_source(test_app):
     from datetime import datetime, timedelta
 
     from app.db import SessionLocal, init_db
+    from app.models.meeting_participant import MeetingParticipant
+    from app.models.person import Person
 
     init_db()
     session = SessionLocal()
     try:
         now = datetime.utcnow()
-        seed_meeting(session, "Next", now + timedelta(hours=1), source_age_days=2)
+        meeting_id = seed_meeting(session, "Next", now + timedelta(hours=1), source_age_days=2)
+        person = Person(id="p_test_1", name="Test Person", type="person")
+        session.add(person)
+        session.add(MeetingParticipant(meeting_id=meeting_id, person_id="p_test_1"))
+        session.commit()
     finally:
         session.close()
 
@@ -85,3 +92,8 @@ def test_briefings_next_includes_source(test_app):
     data = response.json()
     assert data["cards"][0]["source"]["id"]
     assert data["cards"][0]["source"]["uri"].startswith("local://")
+    reason = data["cards"][0]["reason"]
+    assert reason["meeting"]["id"] == data["meeting"]["id"]
+    assert reason["people"]
+    assert reason["rule"]["id"]
+    assert data["commitments"][0]["rule_id"] == "commitment_first_line"

@@ -46,8 +46,10 @@ def _normalize_payload(payload: str | None) -> str:
 
 
 def _dedupe_key(job: IngestionJob, normalized_payload: str) -> str:
+    """Generate deduplication key for job (supports both meeting and person-direct)."""
     parts = [
-        job.meeting_id,
+        job.meeting_id or "",
+        job.person_id or "",  # Epic 32: person-direct support
         job.capture_type,
         normalized_payload,
         (job.people_ids or "").strip(),
@@ -58,6 +60,7 @@ def _dedupe_key(job: IngestionJob, normalized_payload: str) -> str:
 
 
 def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: int = 300):
+    """Find recent duplicate job (supports both meeting and person-direct)."""
     if not job.payload:
         return None
     cutoff = datetime.utcnow() - timedelta(seconds=window_seconds)
@@ -69,6 +72,7 @@ def _find_recent_duplicate(session: Session, job: IngestionJob, window_seconds: 
         .filter(IngestionJob.completed_at != None)  # noqa: E711
         .filter(IngestionJob.completed_at >= cutoff)
         .filter(IngestionJob.meeting_id == job.meeting_id)
+        .filter(IngestionJob.person_id == job.person_id)  # Epic 32: person-direct support
         .filter(IngestionJob.capture_type == job.capture_type)
         .filter(IngestionJob.people_ids == job.people_ids)
         .filter(IngestionJob.relevant_at == job.relevant_at)
@@ -116,6 +120,7 @@ def _process_job(session: Session, job: IngestionJob):
         source = SourceRecord(
             id=source_id,
             meeting_id=job.meeting_id,
+            person_id=job.person_id,  # Epic 32: person-direct support
             captured_at=datetime.utcnow(),
             capture_type=job.capture_type,
             uri=f"local://sources/{source_id}",
@@ -128,8 +133,10 @@ def _process_job(session: Session, job: IngestionJob):
         job.source_id = source_id
         job.dedupe_key = dedupe_key
 
-        meeting = session.query(Meeting).filter(Meeting.id == job.meeting_id).first()
-        meeting_title = meeting.title if meeting else "Context"
+        # Get context title (meeting title or person name)
+        meeting = session.query(Meeting).filter(Meeting.id == job.meeting_id).first() if job.meeting_id else None
+        person_direct = session.get(Person, job.person_id) if job.person_id and not job.meeting_id else None
+        meeting_title = meeting.title if meeting else (f"Note for {person_direct.name}" if person_direct else "Context")
         excerpt = (job.payload or "").strip()
         if len(excerpt) > 200:
             excerpt = f"{excerpt[:197]}…"
@@ -163,10 +170,12 @@ def _process_job(session: Session, job: IngestionJob):
             )
             if existing_commitment:
                 continue
+            # Story 39.1: Use extracted due_date from text if job.commitment_relevant_by is not set
+            due_at = job.commitment_relevant_by or item.due_date
             commitment = Commitment(
                 id=f"c_{uuid4().hex}",
                 text=item.text,
-                due_at=job.commitment_relevant_by,
+                due_at=due_at,
                 acknowledged=False,
                 source_id=source_id,
                 rule_id=item.rule_id,
@@ -187,7 +196,8 @@ def _process_job(session: Session, job: IngestionJob):
 
         session.flush()
 
-        if job.people_ids:
+        # Handle meeting-based jobs with people_ids
+        if job.meeting_id and job.people_ids:
             try:
                 people_ids = json.loads(job.people_ids)
             except json.JSONDecodeError:
@@ -206,14 +216,24 @@ def _process_job(session: Session, job: IngestionJob):
                 if not link:
                     session.add(MeetingParticipant(meeting_id=job.meeting_id, person_id=person_id))
 
-        participant_ids = (
-            session.query(MeetingParticipant.person_id)
-            .filter(MeetingParticipant.meeting_id == job.meeting_id)
-            .all()
-        )
-        if participant_ids:
-            now = datetime.utcnow()
-            session.query(Person).filter(Person.id.in_([pid for (pid,) in participant_ids])).update(
+        # Update last_interaction_at for relevant people
+        now = datetime.utcnow()
+
+        # For meeting-based jobs: update all participants
+        if job.meeting_id:
+            participant_ids = (
+                session.query(MeetingParticipant.person_id)
+                .filter(MeetingParticipant.meeting_id == job.meeting_id)
+                .all()
+            )
+            if participant_ids:
+                session.query(Person).filter(Person.id.in_([pid for (pid,) in participant_ids])).update(
+                    {Person.last_interaction_at: now}, synchronize_session=False
+                )
+
+        # For person-direct jobs (Epic 32): update the direct person
+        if job.person_id and not job.meeting_id:
+            session.query(Person).filter(Person.id == job.person_id).update(
                 {Person.last_interaction_at: now}, synchronize_session=False
             )
 

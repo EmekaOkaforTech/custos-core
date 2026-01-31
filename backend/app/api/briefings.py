@@ -1,7 +1,18 @@
+"""
+Briefings API endpoints for Custos Core.
+
+Epic 33: Person-First Briefing Mode
+- GET /api/briefings/by-person - Briefing organized by person
+- Person priority ordering by commitments + recency
+
+Epic 35: Professional Context Mode
+- Session continuity card for client sessions
+"""
+
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -30,17 +41,23 @@ def get_today_briefings(
     cached: bool = Query(False),
     offline: bool = Query(False),
     cached_at: datetime | None = Query(None),
+    calendar_source: str | None = Query(None),  # Story 37.5: Filter by calendar
 ) -> dict:
     now = cached_at or datetime.utcnow()
     start = datetime(now.year, now.month, now.day)
     end = start + timedelta(days=1)
 
-    meetings = (
-        db.query(Meeting)
-        .filter(Meeting.starts_at >= start, Meeting.starts_at < end)
-        .order_by(Meeting.starts_at.asc())
-        .all()
+    query = db.query(Meeting).filter(
+        Meeting.starts_at >= start,
+        Meeting.starts_at < end,
+        Meeting.cancelled_at.is_(None),  # Exclude cancelled meetings (Story 37.2)
     )
+
+    # Story 37.5: Filter by calendar source if specified
+    if calendar_source:
+        query = query.filter(Meeting.calendar_source_id == calendar_source)
+
+    meetings = query.order_by(Meeting.starts_at.asc()).all()
 
     results = []
     for meeting in meetings:
@@ -66,6 +83,7 @@ def get_today_briefings(
                 "status": status,
                 "last_source_at": last_source_at,
                 "open_commitments": commitments_count or 0,
+                "calendar_source_id": meeting.calendar_source_id,  # Story 37.5
             }
         )
 
@@ -84,14 +102,20 @@ def get_next_briefing(
     cached: bool = Query(False),
     offline: bool = Query(False),
     cached_at: datetime | None = Query(None),
+    calendar_source: str | None = Query(None),  # Story 37.5: Filter by calendar
 ) -> dict:
     now = cached_at or datetime.utcnow()
-    meeting = (
-        db.query(Meeting)
-        .filter(Meeting.starts_at >= now)
-        .order_by(Meeting.starts_at.asc())
-        .first()
+
+    query = db.query(Meeting).filter(
+        Meeting.starts_at >= now,
+        Meeting.cancelled_at.is_(None),  # Exclude cancelled meetings (Story 37.2)
     )
+
+    # Story 37.5: Filter by calendar source if specified
+    if calendar_source:
+        query = query.filter(Meeting.calendar_source_id == calendar_source)
+
+    meeting = query.order_by(Meeting.starts_at.asc()).first()
 
     if not meeting:
         future_relevant = (
@@ -99,6 +123,7 @@ def get_next_briefing(
             .join(Meeting, SourceRecord.meeting_id == Meeting.id)
             .filter(SourceRecord.relevant_at != None)  # noqa: E711
             .filter(SourceRecord.relevant_at >= now)
+            .filter(Meeting.cancelled_at.is_(None))  # Exclude cancelled meetings (Story 37.2)
             .order_by(SourceRecord.relevant_at.asc())
             .all()
         )
@@ -206,6 +231,176 @@ def get_next_briefing(
             for item in commitments
         ],
         "future_relevant": [],
+        "updated_at": now.isoformat(),
+        "cached": cached,
+        "offline": offline,
+    }
+
+
+@router.get("/by-person")
+def get_briefings_by_person(
+    db: Session = Depends(get_db),
+    cached: bool = Query(False),
+    offline: bool = Query(False),
+    cached_at: datetime | None = Query(None),
+) -> dict:
+    """
+    Get briefing organized by person instead of by time (Epic 33).
+
+    Returns people ordered by:
+    1. Open commitments count (descending)
+    2. Last interaction recency (descending)
+
+    Each person includes:
+    - Open commitments
+    - Recent notes excerpt
+    - Last interaction date
+    - Session continuity (for Professional mode - Epic 35)
+    """
+    now = cached_at or datetime.utcnow()
+
+    # Get all people with their metrics
+    people = db.query(Person).order_by(Person.name.asc()).all()
+
+    person_briefings = []
+
+    for person in people:
+        # Get open commitments for this person (from meeting-based sources)
+        meeting_commits = (
+            db.query(Commitment)
+            .join(SourceRecord, Commitment.source_id == SourceRecord.id)
+            .join(MeetingParticipant, MeetingParticipant.meeting_id == SourceRecord.meeting_id)
+            .filter(
+                MeetingParticipant.person_id == person.id,
+                Commitment.acknowledged.is_(False),
+            )
+            .all()
+        )
+
+        # Get open commitments from direct sources
+        direct_commits = (
+            db.query(Commitment)
+            .join(SourceRecord, Commitment.source_id == SourceRecord.id)
+            .filter(
+                SourceRecord.person_id == person.id,
+                SourceRecord.meeting_id.is_(None),
+                Commitment.acknowledged.is_(False),
+            )
+            .all()
+        )
+
+        all_commitments = meeting_commits + direct_commits
+
+        # Get recent direct notes (last 3)
+        recent_notes = (
+            db.query(SourceRecord)
+            .filter(
+                SourceRecord.person_id == person.id,
+                SourceRecord.meeting_id.is_(None),
+            )
+            .order_by(desc(SourceRecord.captured_at))
+            .limit(3)
+            .all()
+        )
+
+        # Get last meeting with this person for session continuity (Epic 35)
+        last_meeting = (
+            db.query(Meeting)
+            .join(MeetingParticipant, MeetingParticipant.meeting_id == Meeting.id)
+            .filter(
+                MeetingParticipant.person_id == person.id,
+                Meeting.starts_at < now,
+                Meeting.cancelled_at.is_(None),  # Exclude cancelled meetings (Story 37.2)
+            )
+            .order_by(desc(Meeting.starts_at))
+            .first()
+        )
+
+        # Get next upcoming meeting with this person
+        next_meeting = (
+            db.query(Meeting)
+            .join(MeetingParticipant, MeetingParticipant.meeting_id == Meeting.id)
+            .filter(
+                MeetingParticipant.person_id == person.id,
+                Meeting.starts_at >= now,
+                Meeting.cancelled_at.is_(None),  # Exclude cancelled meetings (Story 37.2)
+            )
+            .order_by(Meeting.starts_at.asc())
+            .first()
+        )
+
+        # Build session continuity card (Epic 35)
+        session_continuity = None
+        if last_meeting:
+            last_session_source = (
+                db.query(SourceRecord)
+                .filter(SourceRecord.meeting_id == last_meeting.id)
+                .order_by(desc(SourceRecord.captured_at))
+                .first()
+            )
+            session_continuity = {
+                "last_session_date": last_meeting.starts_at,
+                "last_session_title": last_meeting.title,
+                "has_notes": last_session_source is not None,
+                "open_action_items": len(all_commitments),
+            }
+
+        person_briefings.append({
+            "person": {
+                "id": person.id,
+                "name": person.name,
+                "type": person.type,
+                "role": person.role,
+                "last_interaction_at": person.last_interaction_at,
+            },
+            "open_commitments": [
+                {
+                    "id": c.id,
+                    "text": c.text,
+                    "source_id": c.source_id,
+                    "due_at": c.due_at,
+                }
+                for c in all_commitments
+            ],
+            "recent_notes": [
+                {
+                    "id": s.id,
+                    "capture_type": s.capture_type,
+                    "captured_at": s.captured_at,
+                }
+                for s in recent_notes
+            ],
+            "next_meeting": {
+                "id": next_meeting.id,
+                "title": next_meeting.title,
+                "starts_at": next_meeting.starts_at,
+            } if next_meeting else None,
+            "session_continuity": session_continuity,
+            "_sort_commitments": len(all_commitments),
+            "_sort_recency": person.last_interaction_at or datetime.min,
+        })
+
+    # Sort by: (1) open commitments desc, (2) last interaction desc
+    person_briefings.sort(
+        key=lambda x: (-x["_sort_commitments"], x["_sort_recency"]),
+        reverse=False,
+    )
+    person_briefings.sort(
+        key=lambda x: x["_sort_recency"],
+        reverse=True,
+    )
+    person_briefings.sort(
+        key=lambda x: x["_sort_commitments"],
+        reverse=True,
+    )
+
+    # Remove sort keys from response
+    for pb in person_briefings:
+        del pb["_sort_commitments"]
+        del pb["_sort_recency"]
+
+    return {
+        "people": person_briefings,
         "updated_at": now.isoformat(),
         "cached": cached,
         "offline": offline,
