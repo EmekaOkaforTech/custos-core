@@ -31,6 +31,8 @@ const statusRestore = document.getElementById('status-restore');
 const statusStorage = document.getElementById('status-storage');
 const statusRecovery = document.getElementById('status-recovery');
 const statusErrors = document.getElementById('status-errors');
+const acceleratorStatus = document.getElementById('accelerator-status');
+const acceleratorDetail = document.getElementById('accelerator-detail');
 const backupAction = document.getElementById('backup-action');
 const apiKeyForm = document.getElementById('api-key-form');
 const apiKeyInput = document.getElementById('api-key-input');
@@ -913,6 +915,16 @@ async function loadStatus() {
   statusErrors.textContent = `Errors: ${statusData.error_count}`;
   statusStorage.textContent = `Storage: ${formatBytes(storageStatus.used_bytes)} used of ${formatBytes(storageStatus.total_bytes)} (${storageStatus.used_percent ?? 'unknown'}%)`;
   statusRecovery.textContent = `Recovery check: ${recoveryStatus.status} (last restore ${formatDate(recoveryStatus.last_restore)})`;
+
+  const accelerator = statusData.accelerator_status || {};
+  if (acceleratorStatus) {
+    const type = accelerator.type || "unknown";
+    const status = accelerator.status || "unknown";
+    acceleratorStatus.textContent = "Accelerator: " + type + " · " + status;
+  }
+  if (acceleratorDetail) {
+    acceleratorDetail.textContent = accelerator.detail || "";
+  }
 
   const backupFailed = backupStatus.status === 'failed';
   const storageAlert = Boolean(statusData.storage_alert);

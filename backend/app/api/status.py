@@ -16,6 +16,7 @@ from app.models.person import Person
 from app.models.source_record import SourceRecord
 from app.models.ingestion_job import IngestionJob
 from app.ops.backup import _status_path, _load_status, create_backup
+from app.ops.accelerator import get_accelerator_status
 from app.settings import allow_plaintext_db
 from app.calendar.status import read_status as read_calendar_status
 
