@@ -1,0 +1,22 @@
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+  .site-header,
+  .global-nav,
+  .button-link,
+  .modal,
+  .banner {
+    display: none !important;
+  }
+  .container {
+    max-width: 100%;
+    padding: 0;
+  }
+  .card {
+    border: 1px solid #ccc;
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+}
