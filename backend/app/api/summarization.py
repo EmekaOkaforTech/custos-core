@@ -9,7 +9,13 @@ from app.models.source_record import SourceRecord
 from app.models.ingestion_job import IngestionJob
 from app.ops.inference_queue import enqueue_task
 
-router = APIRouter(prefix='/summarization', tags=['summarization'])
+router = APIRouter(prefix='/api/summarization', tags=['summarization'])
+
+ALLOWED_HAILO_MODELS = {
+    'phi-3-mini',
+    'phi-3-mini-4k',
+}
+
 
 
 class SummarizationSettingsOut(BaseModel):
