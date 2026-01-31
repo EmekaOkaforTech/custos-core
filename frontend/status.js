@@ -41,6 +41,13 @@ const networkAddService = document.getElementById("network-add-service");
 const networkScanNow = document.getElementById("network-scan-now");
 const networkSettingsStatus = document.getElementById("network-settings-status");
 const networkSettingsSummary = document.getElementById("network-settings-summary");
+const summarizationForm = document.getElementById("summarization-form");
+const summarizationEnabled = document.getElementById("summarization-enabled");
+const summarizationProvider = document.getElementById("summarization-provider");
+const summarizationModel = document.getElementById("summarization-model");
+const summarizationMaxTokens = document.getElementById("summarization-max-tokens");
+const summarizationStatus = document.getElementById("summarization-status");
+
 const backupAction = document.getElementById('backup-action');
 const apiKeyForm = document.getElementById('api-key-form');
 const apiKeyInput = document.getElementById('api-key-input');
@@ -967,6 +974,37 @@ async function loadNetworkSettings() {
   }
 }
 
+
+async function loadSummarizationSettings() {
+  if (!summarizationForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/summarization/settings"), { headers: getApiHeaders() });
+    if (!response.ok) {
+      if (summarizationStatus) summarizationStatus.textContent = "Unable to load summarization settings.";
+      return;
+    }
+    const data = await response.json();
+    if (summarizationEnabled) summarizationEnabled.checked = Boolean(data.enabled);
+    if (summarizationProvider && data.provider) summarizationProvider.value = data.provider;
+    if (summarizationModel) summarizationModel.value = data.model || "";
+    if (summarizationMaxTokens) summarizationMaxTokens.value = data.max_input_tokens || "";
+    updateSummarizationStatus(data);
+  } catch (err) {
+    if (summarizationStatus) summarizationStatus.textContent = "Unable to load summarization settings.";
+  }
+}
+
+function updateSummarizationStatus(data) {
+  if (!summarizationStatus) return;
+  if (!data || !data.enabled) {
+    summarizationStatus.textContent = "Summaries are off by default.";
+    return;
+  }
+  const providerLabel = data.provider === "home-server" ? "Home server" : "Hailo 8";
+  const modelLabel = data.model ? " · Model " + data.model : "";
+  const tokenLabel = data.max_input_tokens ? " · Max " + data.max_input_tokens + " tokens" : "";
+  summarizationStatus.textContent = "Summaries enabled · " + providerLabel + modelLabel + tokenLabel;
+}
 async function loadTopology() {
   if (!topologyCards) return;
   try {
@@ -1122,8 +1160,38 @@ loadContextGaps();
 loadRelationshipSignals();
 loadTopology();
 loadNetworkSettings();
+loadSummarizationSettings();
 if (networkAddService) {
   networkAddService.addEventListener('click', () => buildManualServiceRow({}));
+}
+
+if (summarizationForm) {
+  summarizationForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = {
+      enabled: Boolean(summarizationEnabled && summarizationEnabled.checked),
+      provider: summarizationProvider ? summarizationProvider.value : null,
+      model: summarizationModel ? summarizationModel.value.trim() || null : null,
+      max_input_tokens: summarizationMaxTokens && summarizationMaxTokens.value
+        ? Number(summarizationMaxTokens.value)
+        : null,
+    };
+    try {
+      const response = await fetch(apiUrl("/api/summarization/settings"), {
+        method: "POST",
+        headers: getApiHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        if (summarizationStatus) summarizationStatus.textContent = "Unable to save summarization settings.";
+        return;
+      }
+      const data = await response.json();
+      updateSummarizationStatus(data);
+    } catch (err) {
+      if (summarizationStatus) summarizationStatus.textContent = "Unable to save summarization settings.";
+    }
+  });
 }
 
 if (networkSettingsForm) {
@@ -1158,6 +1226,7 @@ if (networkSettingsForm) {
       networkSettingsStatus.textContent = 'Network settings saved.';
     }
     loadNetworkSettings();
+loadSummarizationSettings();
     loadTopology();
   });
 }
@@ -1186,6 +1255,7 @@ if (networkScanNow) {
       networkSettingsStatus.textContent = 'Scan complete. ' + count + ' services detected.';
     }
     loadNetworkSettings();
+loadSummarizationSettings();
     loadTopology();
   });
 }

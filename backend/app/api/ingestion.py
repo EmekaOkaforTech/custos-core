@@ -13,6 +13,7 @@ from app.db import get_db
 from app.models.ingestion_job import IngestionJob
 from app.models.meeting import Meeting
 from app.models.person import Person
+from app.models.source_record import SourceRecord
 
 router = APIRouter(prefix="/api/ingestion", tags=["ingestion"])
 
@@ -53,6 +54,10 @@ class RecentCapturePerson(BaseModel):
 
 class RecentCapture(BaseModel):
     id: str
+    summary_text: str | None = None
+    summary_provider: str | None = None
+    summary_model: str | None = None
+    summary_created_at: datetime | None = None
     source_id: str | None
     capture_type: str
     payload: str
@@ -168,6 +173,12 @@ def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[
     meetings = db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).all()
     meeting_map = {meeting.id: meeting for meeting in meetings}
 
+    source_ids = {job.source_id for job in jobs if job.source_id}
+    source_map = {}
+    if source_ids:
+        sources = db.query(SourceRecord).filter(SourceRecord.id.in_(source_ids)).all()
+        source_map = {source.id: source for source in sources}
+
     people_ids = set()
     job_people = {}
     for job in jobs:
@@ -197,6 +208,7 @@ def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[
             for pid in job_people.get(job.id, [])
             if pid in people_map
         ]
+        source = source_map.get(job.source_id)
         results.append(
             RecentCapture(
                 id=job.id,
@@ -204,6 +216,10 @@ def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[
                 capture_type=job.capture_type,
                 payload=job.payload,
                 captured_at=captured_at,
+                summary_text=source.summary_text if source else None,
+                summary_provider=source.summary_provider if source else None,
+                summary_model=source.summary_model if source else None,
+                summary_created_at=source.summary_created_at if source else None,
                 meeting=RecentCaptureMeeting(
                     id=meeting.id,
                     title=meeting.title,
@@ -253,6 +269,11 @@ def get_recent_decisions(
     meeting_ids = {job.meeting_id for job in jobs}
     meetings = db.query(Meeting).filter(Meeting.id.in_(meeting_ids)).all()
     meeting_map = {meeting.id: meeting for meeting in meetings}
+    source_ids = {job.source_id for job in jobs if job.source_id}
+    source_map = {}
+    if source_ids:
+        sources = db.query(SourceRecord).filter(SourceRecord.id.in_(source_ids)).all()
+        source_map = {source.id: source for source in sources}
 
     people_ids = set()
     job_people = {}
@@ -283,6 +304,7 @@ def get_recent_decisions(
             for pid in job_people.get(job.id, [])
             if pid in people_map
         ]
+        source = source_map.get(job.source_id)
         results.append(
             RecentCapture(
                 id=job.id,
@@ -290,6 +312,10 @@ def get_recent_decisions(
                 capture_type=job.capture_type,
                 payload=job.payload,
                 captured_at=captured_at,
+                summary_text=source.summary_text if source else None,
+                summary_provider=source.summary_provider if source else None,
+                summary_model=source.summary_model if source else None,
+                summary_created_at=source.summary_created_at if source else None,
                 meeting=RecentCaptureMeeting(
                     id=meeting.id,
                     title=meeting.title,

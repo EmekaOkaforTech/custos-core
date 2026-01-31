@@ -15,6 +15,7 @@ from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
 from app.models.risk_flag import RiskFlag
 from app.models.inference_task import InferenceTask
+from app.models.summarization_settings import SummarizationSettings
 from app.models.meeting import Meeting
 from app.ops.qdrant_store import add_documents
 from app.models.source_record import SourceRecord
@@ -216,6 +217,26 @@ def _process_job(session: Session, job: IngestionJob):
             ))
 
         session.flush()
+
+        # Summarization trigger (Story 44.3)
+        settings = session.query(SummarizationSettings).first()
+        if settings and settings.enabled and job.payload:
+            word_count = len(job.payload.split())
+            if word_count > 500 and job.capture_type != "audio":
+                payload = {
+                    "source_id": source_id,
+                    "text": job.payload,
+                    "provider": settings.provider or "hailo",
+                    "model": settings.model,
+                    "max_input_tokens": settings.max_input_tokens or 2000,
+                }
+                session.add(InferenceTask(
+                    id=f"t_{uuid4().hex}",
+                    task_type="summarize",
+                    payload=json.dumps(payload),
+                    priority=2,
+                    status="queued",
+                ))
 
         # Handle meeting-based jobs with people_ids
         if job.meeting_id and job.people_ids:

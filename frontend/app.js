@@ -108,6 +108,7 @@ function setDemoBadge(show) {
 
 let currentMeeting = null;
 let showAllCaptures = false;
+let summarizationEnabled = false;
 let captureToMove = null;
 let memoryCollapsed = false;
 let hasAppliedMemoryDefault = false;
@@ -453,33 +454,72 @@ function renderMixedRelationshipSignals(items) {
 
 
 function renderRecentCapture(item) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  const header = document.createElement('div');
-  header.className = 'commitment-row';
-  const title = document.createElement('h4');
-  title.textContent = `${item.meeting?.title || 'Meeting'} · ${item.capture_type}`;
-  const moveButton = document.createElement('button');
-  moveButton.className = 'button-link';
-  moveButton.type = 'button';
-  moveButton.textContent = 'Move';
-  moveButton.addEventListener('click', () => {
+  const card = document.createElement("div");
+  card.className = "card";
+  const header = document.createElement("div");
+  header.className = "commitment-row";
+  const title = document.createElement("h4");
+  title.textContent = `${item.meeting?.title || "Meeting"} · ${item.capture_type}`;
+  const moveButton = document.createElement("button");
+  moveButton.className = "button-link";
+  moveButton.type = "button";
+  moveButton.textContent = "Move";
+  moveButton.addEventListener("click", () => {
     if (!item.source_id) return;
     openMoveModal(item);
   });
   if (!item.source_id) {
     moveButton.disabled = true;
   }
+  const summarizeButton = document.createElement("button");
+  summarizeButton.className = "button-link";
+  summarizeButton.type = "button";
+  summarizeButton.textContent = summarizationEnabled ? "Summarize" : "Summaries off";
+  summarizeButton.disabled = !summarizationEnabled || !item.source_id;
+  summarizeButton.addEventListener("click", async () => {
+    if (!item.source_id) return;
+    summarizeButton.disabled = true;
+    summarizeButton.textContent = "Queued";
+    try {
+      const response = await fetch(apiUrl(`/api/summarization/run/${item.source_id}`), {
+        method: "POST",
+        headers: getApiHeaders(),
+      });
+      if (!response.ok) {
+        summarizeButton.textContent = "Failed";
+        return;
+      }
+      summarizeButton.textContent = "Queued";
+    } catch (err) {
+      summarizeButton.textContent = "Failed";
+    }
+  });
   header.appendChild(title);
   header.appendChild(moveButton);
-  const when = document.createElement('p');
-  when.className = 'muted';
-  when.textContent = formatDate(item.captured_at) || 'recent';
-  const body = document.createElement('p');
+  header.appendChild(summarizeButton);
+  const when = document.createElement("p");
+  when.className = "muted";
+  when.textContent = formatDate(item.captured_at) || "recent";
+  const body = document.createElement("p");
   body.textContent = item.payload;
+  const summary = document.createElement("div");
+  if (item.summary_text) {
+    const summaryLabel = document.createElement("p");
+    summaryLabel.className = "muted";
+    const modelLabel = item.summary_model ? ` · ${item.summary_model}` : "";
+    const whenLabel = item.summary_created_at ? ` · ${formatDate(item.summary_created_at)}` : "";
+    summaryLabel.textContent = `AI-generated summary${modelLabel}${whenLabel}`;
+    const summaryText = document.createElement("p");
+    summaryText.textContent = item.summary_text;
+    summary.appendChild(summaryLabel);
+    summary.appendChild(summaryText);
+  }
   card.appendChild(header);
   card.appendChild(when);
   card.appendChild(body);
+  if (item.summary_text) {
+    card.appendChild(summary);
+  }
   return card;
 }
 
@@ -1060,6 +1100,20 @@ async function submitMoveCapture(event) {
   await loadBriefings();
 }
 
+async function loadSummarizationSettings() {
+  try {
+    const response = await fetch(apiUrl("/api/summarization/settings"), { headers: getApiHeaders() });
+    if (!response.ok) {
+      summarizationEnabled = false;
+      return;
+    }
+    const data = await response.json();
+    summarizationEnabled = Boolean(data.enabled);
+  } catch (err) {
+    summarizationEnabled = false;
+  }
+}
+
 async function loadBriefings() {
   const base = getApiBase();
   if (!base || !isSetupComplete()) {
@@ -1069,6 +1123,8 @@ async function loadBriefings() {
 
   // Update terminology based on current mode
   updateTerminology();
+loadSummarizationSettings();
+loadBriefings().catch(() => {});
 
   // Check if person-first mode is enabled
   const briefingMode = getBriefingMode();
@@ -1332,7 +1388,7 @@ function updateOfflineIndicator() {
 
 window.addEventListener('online', () => {
   updateOfflineIndicator();
-  // Reload briefings when coming back online
+  loadSummarizationSettings();
   loadBriefings().catch(() => {});
 });
 
@@ -1341,3 +1397,5 @@ window.addEventListener('offline', updateOfflineIndicator);
 // Initial check
 updateOfflineIndicator();
 updateTerminology();
+loadSummarizationSettings();
+loadBriefings().catch(() => {});

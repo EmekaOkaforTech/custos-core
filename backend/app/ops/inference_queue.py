@@ -9,7 +9,9 @@ from app.db import SessionLocal
 from app.models.inference_task import InferenceTask
 from app.models.ingestion_job import IngestionJob
 from app.models.network_settings import NetworkSettings
+from app.models.source_record import SourceRecord
 from app.ops.whisper_hailo import transcribe_audio
+from app.ops.summarization import summarize_text
 from app.ops.accelerator import get_accelerator_status
 
 
@@ -67,10 +69,48 @@ def _next_task(db):
 def _process_task(db, task: InferenceTask) -> None:
     task.started_at = datetime.utcnow()
     status = get_accelerator_status()
-    if task.task_type != "whisper_transcribe" and (status.status != "available" or status.throttled):
+    if task.task_type not in {"whisper_transcribe", "summarize"} and (status.status != "available" or status.throttled):
         task.status = "deferred"
         task.error = status.detail or "accelerator unavailable"
         task.completed_at = datetime.utcnow()
+        db.commit()
+        return
+
+    if task.task_type == "summarize":
+        payload = {}
+        if task.payload:
+            try:
+                payload = json.loads(task.payload)
+            except json.JSONDecodeError:
+                payload = {}
+        provider = payload.get("provider") or "hailo"
+        if provider == "hailo" and (status.status != "available" or status.throttled):
+            task.status = "deferred"
+            task.error = status.detail or "accelerator unavailable"
+            task.completed_at = datetime.utcnow()
+            db.commit()
+            return
+        source_id = payload.get("source_id")
+        text_in = payload.get("text")
+        model = payload.get("model")
+        max_tokens = payload.get("max_input_tokens")
+        summary, error = summarize_text(text_in or "", provider, model, max_tokens)
+        if error:
+            task.status = "failed"
+            task.error = error
+            task.completed_at = datetime.utcnow()
+            db.commit()
+            return
+        if source_id:
+            source = db.query(SourceRecord).filter(SourceRecord.id == source_id).first()
+            if source:
+                source.summary_text = summary
+                source.summary_provider = provider
+                source.summary_model = model
+                source.summary_created_at = datetime.utcnow()
+        task.status = "completed"
+        task.completed_at = datetime.utcnow()
+        task.error = None
         db.commit()
         return
 

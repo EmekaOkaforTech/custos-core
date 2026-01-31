@@ -25,4 +25,8 @@ class SourceRecord(Base):
     dedupe_key = Column(String, nullable=True, index=True, unique=True)
     index_in_memory = Column(Boolean, nullable=False, default=False)
     people_ids = Column(Text, nullable=True)
+    summary_text = Column(Text, nullable=True)
+    summary_provider = Column(String, nullable=True)
+    summary_model = Column(String, nullable=True)
+    summary_created_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow, nullable=False)

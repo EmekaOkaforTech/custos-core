@@ -212,7 +212,26 @@
       </form>
     </section>
 
-<section class="section" id="closure-section">
+<section class="card" id="summarization-card">
+      <h3>Summarization</h3>
+      <form class="filters" id="summarization-form">
+        <label for="summarization-enabled">Enable summaries</label>
+        <input id="summarization-enabled" type="checkbox" />
+        <label for="summarization-provider">Provider</label>
+        <select id="summarization-provider">
+          <option value="hailo">Hailo 8</option>
+          <option value="home-server">Home server</option>
+        </select>
+        <label for="summarization-model">Model (optional)</label>
+        <input id="summarization-model" name="model" placeholder="e.g. phi-3-mini" />
+        <label for="summarization-max-tokens">Max input tokens</label>
+        <input id="summarization-max-tokens" type="number" min="256" step="128" />
+        <button type="submit">Save</button>
+      </form>
+      <p class="muted" id="summarization-status">Summaries are off by default.</p>
+    </section>
+
+    <section class="section" id="closure-section">
       <div class="section-header">
         <h3>Commitment closure</h3>
         <div class="tag-input">
