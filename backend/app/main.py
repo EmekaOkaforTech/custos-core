@@ -14,8 +14,10 @@ from app.api.sources import router as sources_router
 from app.api.memory import router as memory_router
 from app.api.network import router as network_router
 from app.api.inference import router as inference_router
+from app.api.sync import router as sync_router
 from app.db import init_db
 from app.settings import get_cors_origins
+from app.ops.sync_scheduler import start_sync_scheduler
 
 app = FastAPI(title="Custos Core API")
 cors_origins = get_cors_origins()
@@ -40,8 +42,10 @@ app.include_router(sources_router)
 app.include_router(memory_router)
 app.include_router(network_router)
 app.include_router(inference_router)
+app.include_router(sync_router)
 
 
 @app.on_event("startup")
 def startup() -> None:
     init_db()
+    start_sync_scheduler()

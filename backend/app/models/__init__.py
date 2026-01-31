@@ -5,6 +5,7 @@ from .ingestion_job import IngestionJob
 from .calendar_connection import CalendarConnection
 from .network_settings import NetworkSettings
 from .nas_backup_target import NasBackupTarget
+from .nas_sync_settings import NasSyncSettings
 from .meeting import Meeting
 from .meeting_participant import MeetingParticipant
 from .person import Person
@@ -20,6 +21,7 @@ __all__ = [
     CalendarConnection,
     NetworkSettings,
     NasBackupTarget,
+    NasSyncSettings,
     Meeting,
     MeetingParticipant,
     Person,

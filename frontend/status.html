@@ -154,6 +154,26 @@
       </form>
     </section>
 
+
+    <section class="card" id="sync-card">
+      <h3>Home device sync</h3>
+      <p class="muted" id="sync-status">Home sync not configured.</p>
+      <form class="filters" id="sync-form">
+        <label for="sync-mount">Sync mount path</label>
+        <input id="sync-mount" name="mount_path" placeholder="/mnt/nas" />
+        <label class="checkbox-row">
+          <input id="sync-enabled" type="checkbox" />
+          Enable sync
+        </label>
+        <div class="tag-input">
+          <button type="submit">Save</button>
+          <button type="button" class="button-link" id="sync-run">Sync now</button>
+          <button type="button" class="button-link" id="sync-restore">Restore from sync</button>
+        </div>
+        <p class="muted" id="sync-message"></p>
+      </form>
+    </section>
+
 </section>
 
     <section class="section" id="closure-section">

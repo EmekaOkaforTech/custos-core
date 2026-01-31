@@ -827,6 +827,30 @@ async function loadInferenceSettings() {
   }
 }
 
+function updateSyncStatus(data) {
+  if (!syncStatus) return;
+  if (!data?.enabled) {
+    syncStatus.textContent = "Home sync not configured.";
+    return;
+  }
+  const lastSync = formatDate(data?.last_sync_at);
+  syncStatus.textContent = "Home sync enabled (last sync " + lastSync + ")";
+}
+
+async function loadSyncSettings() {
+  if (!syncForm) return;
+  try {
+    const response = await fetch(apiUrl("/api/sync/settings"), { headers: getApiHeaders() });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (syncMount) syncMount.value = data.mount_path || "";
+    if (syncEnabled) syncEnabled.checked = Boolean(data.enabled);
+    updateSyncStatus(data);
+  } catch (err) {
+    // ignore
+  }
+}
+
 async function loadStatus() {
   const healthResponse = await fetch(apiUrl('/api/health'), { headers: getApiHeaders() });
   const healthData = await healthResponse.json();
