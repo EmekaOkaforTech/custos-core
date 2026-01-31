@@ -8,7 +8,7 @@ import sqlalchemy as sa
 
 
 revision = "0018"
-down_revision = "0017"
+down_revision = "0017_calendar_sync_tracking"
 branch_labels = None
 depends_on = None
 

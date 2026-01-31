@@ -11,6 +11,7 @@ from app.api.status import router as status_router
 from app.api.people import router as people_router
 from app.api.sources import router as sources_router
 from app.api.memory import router as memory_router
+from app.api.network import router as network_router
 from app.db import init_db
 from app.settings import get_cors_origins
 
@@ -34,6 +35,7 @@ app.include_router(people_router)
 app.include_router(admin_router)
 app.include_router(sources_router)
 app.include_router(memory_router)
+app.include_router(network_router)
 
 
 @app.on_event("startup")

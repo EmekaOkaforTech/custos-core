@@ -3,6 +3,7 @@ from .base import Base
 from .commitment import Commitment
 from .ingestion_job import IngestionJob
 from .calendar_connection import CalendarConnection
+from .network_settings import NetworkSettings
 from .meeting import Meeting
 from .meeting_participant import MeetingParticipant
 from .person import Person
