@@ -14,6 +14,7 @@ import json
 from app.models.meeting_participant import MeetingParticipant
 from app.models.person import Person
 from app.models.risk_flag import RiskFlag
+from app.models.inference_task import InferenceTask
 from app.models.meeting import Meeting
 from app.ops.qdrant_store import add_documents
 from app.models.source_record import SourceRecord
@@ -198,6 +199,21 @@ def _process_job(session: Session, job: IngestionJob):
                 captured_at=source.captured_at,
             )
             session.add(risk_flag)
+
+        if job.capture_type == "audio" and getattr(job, "media_path", None):
+            payload = {
+                "media_path": job.media_path,
+                "meeting_id": job.meeting_id,
+                "person_id": job.person_id,
+                "people_ids": job.people_ids,
+            }
+            session.add(InferenceTask(
+                id=f"t_{uuid4().hex}",
+                task_type="whisper_transcribe",
+                payload=json.dumps(payload),
+                priority=1,
+                status="queued",
+            ))
 
         session.flush()
 

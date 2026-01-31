@@ -2,9 +2,12 @@ import threading
 import time
 from datetime import datetime
 from uuid import uuid4
+import json
 
 from app.db import SessionLocal
 from app.models.inference_task import InferenceTask
+from app.models.ingestion_job import IngestionJob
+from app.ops.whisper_hailo import transcribe_audio
 from app.ops.accelerator import get_accelerator_status
 
 
@@ -41,14 +44,51 @@ def _next_task(db):
 def _process_task(db, task: InferenceTask) -> None:
     task.started_at = datetime.utcnow()
     status = get_accelerator_status()
-    if status.status != "available" or status.throttled:
+    if task.task_type != "whisper_transcribe" and (status.status != "available" or status.throttled):
         task.status = "deferred"
         task.error = status.detail or "accelerator unavailable"
         task.completed_at = datetime.utcnow()
         db.commit()
         return
 
-    # Placeholder for accelerator execution. Real inference is handled in future stories.
+    if task.task_type == "whisper_transcribe":
+        payload = {}
+        if task.payload:
+            try:
+                payload = json.loads(task.payload)
+            except json.JSONDecodeError:
+                payload = {}
+        media_path = payload.get("media_path")
+        text_out, error = transcribe_audio(media_path)
+        if error:
+            task.status = "failed"
+            task.error = error
+            task.completed_at = datetime.utcnow()
+            db.commit()
+            return
+        meeting_id = payload.get("meeting_id")
+        person_id = payload.get("person_id")
+        people_ids = payload.get("people_ids")
+        job = IngestionJob(
+            id="j_" + uuid4().hex,
+            meeting_id=meeting_id,
+            person_id=person_id,
+            payload=text_out,
+            capture_type="transcript",
+            people_ids=people_ids,
+            relevant_at=None,
+            commitment_relevant_by=None,
+            index_in_memory=False,
+            status="queued",
+        )
+        db.add(job)
+        task.status = "completed"
+        task.completed_at = datetime.utcnow()
+        task.error = None
+        db.commit()
+        return
+
+    # Placeholder for accelerator execution.
     task.status = "completed"
     task.completed_at = datetime.utcnow()
     task.error = None
