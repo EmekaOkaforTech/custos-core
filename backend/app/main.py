@@ -15,6 +15,7 @@ from app.api.memory import router as memory_router
 from app.api.network import router as network_router
 from app.api.inference import router as inference_router
 from app.api.sync import router as sync_router
+from app.api.models import router as models_router
 from app.db import init_db
 from app.settings import get_cors_origins
 from app.ops.sync_scheduler import start_sync_scheduler
@@ -43,6 +44,7 @@ app.include_router(memory_router)
 app.include_router(network_router)
 app.include_router(inference_router)
 app.include_router(sync_router)
+app.include_router(models_router)
 
 
 @app.on_event("startup")
