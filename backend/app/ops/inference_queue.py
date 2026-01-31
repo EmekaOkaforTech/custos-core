@@ -3,15 +3,38 @@ import time
 from datetime import datetime
 from uuid import uuid4
 import json
+import httpx
 
 from app.db import SessionLocal
 from app.models.inference_task import InferenceTask
 from app.models.ingestion_job import IngestionJob
+from app.models.network_settings import NetworkSettings
 from app.ops.whisper_hailo import transcribe_audio
 from app.ops.accelerator import get_accelerator_status
 
 
 POLL_INTERVAL_SECONDS = 10
+
+
+def _get_inference_settings(db):
+    settings = db.query(NetworkSettings).first()
+    return settings
+
+
+def _delegate_to_server(url: str, media_path: str) -> tuple[str | None, str | None]:
+    if not url or not media_path:
+        return None, "inference_server_unavailable"
+    try:
+        with open(media_path, "rb") as handle:
+            files = {"file": ("audio.webm", handle, "audio/webm")}
+            response = httpx.post(f"{url.rstrip('/')}/whisper", files=files, timeout=60)
+        if response.status_code != 200:
+            return None, f"inference_server_error:{response.status_code}"
+        payload = response.json()
+        text_out = payload.get("text") if isinstance(payload, dict) else None
+        return text_out, None
+    except Exception as exc:
+        return None, f"inference_server_error:{exc}"
 
 
 def enqueue_task(task_type: str, payload: str | None, priority: int) -> InferenceTask:
@@ -60,6 +83,10 @@ def _process_task(db, task: InferenceTask) -> None:
                 payload = {}
         media_path = payload.get("media_path")
         text_out, error = transcribe_audio(media_path)
+        if error and error.startswith("accelerator_"):
+            settings = _get_inference_settings(db)
+            if settings and settings.inference_enabled and settings.inference_url:
+                text_out, error = _delegate_to_server(settings.inference_url, media_path)
         if error:
             task.status = "failed"
             task.error = error
