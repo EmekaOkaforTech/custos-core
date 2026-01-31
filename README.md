@@ -32,6 +32,81 @@ Calendar demo provider is available only when:
 - `CUSTOS_CALENDAR_PROVIDER=demo`
 - `CUSTOS_CALENDAR_ENABLED=1`
 
+## OAuth Calendar Integration (Google/Microsoft)
+
+Custos supports OAuth2 calendar integration with Google Calendar and Microsoft Outlook. This requires registering an OAuth application with the respective provider.
+
+### Google Calendar Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google Calendar API:
+   - Navigate to "APIs & Services" > "Library"
+   - Search for "Google Calendar API" and enable it
+4. Configure OAuth consent screen:
+   - Navigate to "APIs & Services" > "OAuth consent screen"
+   - Choose "External" user type (or "Internal" for Workspace)
+   - Fill in required app information
+   - Add scope: `https://www.googleapis.com/auth/calendar.readonly`
+5. Create OAuth credentials:
+   - Navigate to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - Choose "Web application"
+   - Add authorized redirect URI: `http://localhost:5173/oauth-callback.html` (dev) or your production URL
+   - Copy the Client ID and Client Secret
+
+Set environment variables:
+```bash
+export CUSTOS_GOOGLE_CLIENT_ID="your-client-id.apps.googleusercontent.com"
+export CUSTOS_GOOGLE_CLIENT_SECRET="your-client-secret"
+```
+
+### Microsoft Outlook Setup
+
+1. Go to [Azure Portal](https://portal.azure.com/)
+2. Navigate to "Azure Active Directory" > "App registrations"
+3. Click "New registration":
+   - Name: "Custos Calendar"
+   - Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+   - Redirect URI: Web, `http://localhost:5173/oauth-callback.html` (dev) or your production URL
+4. Configure API permissions:
+   - Navigate to "API permissions"
+   - Click "Add a permission" > "Microsoft Graph" > "Delegated permissions"
+   - Add: `Calendars.Read`, `User.Read`, `offline_access`
+   - Click "Grant admin consent" if required by your organization
+5. Create client secret:
+   - Navigate to "Certificates & secrets"
+   - Click "New client secret"
+   - Copy the secret value (shown only once)
+
+Set environment variables:
+```bash
+export CUSTOS_MICROSOFT_CLIENT_ID="your-application-client-id"
+export CUSTOS_MICROSOFT_CLIENT_SECRET="your-client-secret-value"
+```
+
+### OAuth Environment Variables Summary
+
+```bash
+# Google Calendar OAuth
+CUSTOS_GOOGLE_CLIENT_ID       # OAuth client ID from Google Cloud Console
+CUSTOS_GOOGLE_CLIENT_SECRET   # OAuth client secret from Google Cloud Console
+
+# Microsoft Outlook OAuth
+CUSTOS_MICROSOFT_CLIENT_ID    # Application (client) ID from Azure Portal
+CUSTOS_MICROSOFT_CLIENT_SECRET # Client secret value from Azure Portal
+
+# Enable calendar integration
+CUSTOS_CALENDAR_ENABLED=1
+```
+
+### OAuth Security Notes
+
+- OAuth state tokens are stored in the database for CSRF protection
+- Tokens are encrypted at rest when using SQLCipher
+- Refresh tokens are used to maintain access without re-authorization
+- Token revocation is supported for Google; Microsoft tokens are invalidated by deletion
+
 ## Performance Fixtures (Non-Production)
 Perf tooling must run against sanctioned non-production fixtures only. No real user or customer data is permitted.
 
@@ -121,6 +196,22 @@ CORS is disabled by default. Enable for dev UI access only:
 ```bash
 export CUSTOS_DEV_CORS=1
 ```
+
+## Vector Memory (Qdrant Local)
+Vector recall uses Qdrant locally. The embedded store cannot be opened by multiple processes at once. For the dev stack (API + worker), run a local Qdrant server and set:
+```bash
+export CUSTOS_QDRANT_URL="http://127.0.0.1:6333"
+```
+Example (Docker):
+```bash
+docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant
+```
+Alternate port (if 6333/6334 are in use):
+```bash
+export CUSTOS_QDRANT_URL="http://127.0.0.1:17633"
+docker run -d --name qdrant-custos -p 17633:6333 -p 17634:6334 qdrant/qdrant
+```
+If you choose embedded local storage instead, run a single process (no concurrent worker) to avoid lock errors.
 Or set an explicit allowlist:
 ```bash
 export CUSTOS_CORS_ORIGINS="http://127.0.0.1:5173,http://192.168.10.50:5173"
@@ -129,6 +220,11 @@ Verify preflight + response headers:
 ```bash
 curl -i -X OPTIONS http://192.168.10.50:8000/api/briefings/next -H "Origin: http://192.168.10.50:5173" -H "Access-Control-Request-Method: GET" | sed -n '1,30p'
 curl -i http://192.168.10.50:8000/api/health -H "Origin: http://192.168.10.50:5173" | sed -n '1,30p'
+```
+Backfill vector memory after switching to a Qdrant server:
+```bash
+cd custos-core/backend
+python scripts/backfill_qdrant.py
 ```
 
 ## Admin API (Dev Only)

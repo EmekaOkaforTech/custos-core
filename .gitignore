@@ -4,3 +4,10 @@ backend/custos-data/*.json
 backend/custos-data/backups/
 backend/custos.db
 admin_key_smoke_*.log
+backend/.venv/
+backend/custos-data/
+backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
+__pycache__/
+*.pyc
