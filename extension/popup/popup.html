@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custos Quick Capture</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <h1>Custos</h1>
+      <div id="status-indicator" class="status-indicator disconnected">
+        <span class="status-dot"></span>
+        <span id="status-text">Disconnected</span>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <!-- Not Configured State -->
+      <div id="not-configured" class="state-container">
+        <p class="message">Configure your Custos backend to get started.</p>
+        <button id="open-settings" class="btn btn-primary">Open Settings</button>
+      </div>
+
+      <!-- Connected State -->
+      <div id="connected" class="state-container hidden">
+        <div class="capture-form">
+          <!-- Page context indicator (Story 38.3) -->
+          <div id="page-context-info" class="page-context-info hidden">
+            <span class="context-icon">📄</span>
+            <span id="page-context-text" class="context-text"></span>
+          </div>
+
+          <textarea
+            id="capture-text"
+            placeholder="What do you want to capture?"
+            rows="4"
+          ></textarea>
+
+          <div class="form-row">
+            <label for="capture-type">Type:</label>
+            <select id="capture-type">
+              <!-- Options populated by JavaScript based on target mode -->
+            </select>
+          </div>
+
+          <div class="form-row target-row">
+            <label id="target-label">Target:</label>
+            <div class="target-toggle" role="group" aria-labelledby="target-label">
+              <button type="button" id="target-meeting" class="toggle-btn active" aria-pressed="true" tabindex="0">Meeting</button>
+              <button type="button" id="target-person" class="toggle-btn" aria-pressed="false" tabindex="0">Person</button>
+            </div>
+          </div>
+
+          <div id="meeting-select-row" class="form-row">
+            <label for="meeting-select">Meeting:</label>
+            <select id="meeting-select">
+              <option value="">-- No meeting --</option>
+            </select>
+          </div>
+
+          <div id="person-select-row" class="form-row hidden">
+            <label for="person-select">Person:</label>
+            <select id="person-select">
+              <option value="">-- No person --</option>
+            </select>
+          </div>
+
+          <!-- Source URL option (Story 38.3) -->
+          <div class="form-row source-url-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="include-source-url" aria-label="Include source URL with capture" aria-describedby="source-url-help">
+              <span>Include source URL</span>
+            </label>
+            <span id="source-url-help" class="sr-only">When enabled, the page URL will be included with your capture</span>
+          </div>
+
+          <button id="submit-capture" class="btn btn-primary" disabled>
+            Capture
+          </button>
+        </div>
+
+        <div id="capture-result" class="capture-result hidden">
+          <span class="result-icon"></span>
+          <span class="result-text"></span>
+        </div>
+
+        <!-- Recent Captures (Story 38.5) -->
+        <div id="recent-captures" class="recent-captures hidden">
+          <h2 class="recent-captures-title">Recent Captures</h2>
+          <div id="recent-captures-list" class="recent-captures-list" aria-label="Recent captures today">
+            <!-- Populated by JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Error State -->
+      <div id="error-state" class="state-container hidden">
+        <p class="error-message" id="error-text"></p>
+        <button id="retry-connection" class="btn btn-secondary">Retry</button>
+      </div>
+    </main>
+
+    <footer class="popup-footer">
+      <a href="#" id="settings-link">Settings</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
