@@ -43,6 +43,7 @@ export function initCapture({ onSuccess } = {}) {
   const relevantWhen = document.getElementById('capture-relevant');
   const relevantDate = document.getElementById('capture-relevant-date');
   const indexInMemory = document.getElementById('capture-index-memory');
+  const visibilityToggle = document.getElementById('capture-visibility');
   const notes = document.getElementById('capture-notes');
   const audioGroup = document.getElementById('capture-audio-group');
   const audioStart = document.getElementById('capture-audio-start');
@@ -93,6 +94,9 @@ export function initCapture({ onSuccess } = {}) {
 
   function setModalOpen(open) {
     modal.classList.toggle('open', open);
+    if (open) {
+      applyVisibilityDefault();
+    }
     modal.setAttribute('aria-hidden', open ? 'false' : 'true');
     if (!open) {
       setStatus('');
@@ -342,6 +346,14 @@ export function initCapture({ onSuccess } = {}) {
     if (defaults.people && defaults.people.length) {
       setSelectedPeople(defaults.people);
     }
+  }
+
+  function applyVisibilityDefault() {
+    if (!visibilityToggle || typeof localStorage === "undefined") {
+      return;
+    }
+    const defaultVisibility = localStorage.getItem("custos_default_visibility") || "personal";
+    visibilityToggle.checked = defaultVisibility === "shared";
   }
 
   function updateMeetingDetail() {
@@ -668,6 +680,8 @@ export function initCapture({ onSuccess } = {}) {
     const commitmentRelevantAt = commitmentRelevantBy?.value
       ? new Date(`${commitmentRelevantBy.value}T09:00:00`).toISOString()
       : null;
+    const storedUserId = localStorage.getItem('custos_user_id') || undefined;
+    const visibilityValue = visibilityToggle && visibilityToggle.checked ? 'shared' : 'personal';
     const body = {
       meeting_id: meeting.id,
       capture_type: captureValue,
@@ -676,6 +690,8 @@ export function initCapture({ onSuccess } = {}) {
       relevant_at: relevantAt || undefined,
       commitment_relevant_by: commitmentRelevantAt || undefined,
       index_in_memory: indexFlag,
+      owner_id: storedUserId,
+      visibility: visibilityValue,
     };
 
     // Check if we're offline - queue for later sync

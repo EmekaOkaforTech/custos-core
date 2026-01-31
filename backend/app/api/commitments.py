@@ -25,6 +25,12 @@ class CommitmentUpdateRequest(BaseModel):
     relevant_by: datetime | None = None
 
 
+def _apply_visibility(query, user_id: str | None):
+    if not user_id:
+        return query
+    return query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+
+
 def _people_for_sources(db: Session, source_map: dict[str, SourceRecord]) -> dict[str, list[dict]]:
     people_by_source: dict[str, list[dict]] = {}
     person_ids = set()
@@ -52,13 +58,17 @@ def _people_for_sources(db: Session, source_map: dict[str, SourceRecord]) -> dic
     return resolved
 
 @router.get("/closure")
-def commitment_closure(db: Session = Depends(get_db)) -> dict:
+def commitment_closure(db: Session = Depends(get_db), user_id: str | None = None) -> dict:
     now = datetime.utcnow()
-    commitments = (
+    query = (
         db.query(Commitment, SourceRecord, Meeting)
         .join(SourceRecord, Commitment.source_id == SourceRecord.id)
         .join(Meeting, SourceRecord.meeting_id == Meeting.id)
-        .order_by(Commitment.due_at.asc().nulls_last(), Commitment.created_at.asc())
+    )
+    if user_id:
+        query = query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+    commitments = (
+        query.order_by(Commitment.due_at.asc().nulls_last(), Commitment.created_at.asc())
         .all()
     )
 
@@ -125,14 +135,18 @@ def commitment_closure(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/threads")
-def unresolved_threads(db: Session = Depends(get_db)) -> dict:
+def unresolved_threads(db: Session = Depends(get_db), user_id: str | None = None) -> dict:
     now = datetime.utcnow()
-    commitments = (
+    query = (
         db.query(Commitment, SourceRecord, Meeting)
         .join(SourceRecord, Commitment.source_id == SourceRecord.id)
         .join(Meeting, SourceRecord.meeting_id == Meeting.id)
         .filter(Commitment.acknowledged.is_(False))
-        .order_by(Meeting.starts_at.asc(), Commitment.due_at.asc().nulls_last())
+    )
+    if user_id:
+        query = query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+    commitments = (
+        query.order_by(Meeting.starts_at.asc(), Commitment.due_at.asc().nulls_last())
         .all()
     )
     if not commitments:

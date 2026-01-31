@@ -13,7 +13,7 @@ Epic 34/35: Care/Professional modes (capture types supported)
 
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
@@ -30,6 +30,12 @@ from app.models.source_record import SourceRecord
 from app.utils.datetime import utcnow
 
 router = APIRouter(prefix="/api/people", tags=["people"])
+
+
+def _apply_visibility(query, user_id: str | None):
+    if not user_id:
+        return query
+    return query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
 
 
 # ============================================================================
@@ -179,6 +185,7 @@ def list_people(
     role: str | None = None,
     tag: str | None = None,
     type: str | None = None,
+    user_id: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> list[dict]:
     """
@@ -194,18 +201,22 @@ def list_people(
     - last_observation_at (for Care mode)
     """
     # Get latest capture from meeting-based sources
-    meeting_capture = (
+    meeting_capture_query = _apply_visibility(
         db.query(
             MeetingParticipant.person_id.label("person_id"),
             func.max(SourceRecord.captured_at).label("max_captured"),
         )
-        .join(SourceRecord, SourceRecord.meeting_id == MeetingParticipant.meeting_id)
+        .join(SourceRecord, SourceRecord.meeting_id == MeetingParticipant.meeting_id),
+        user_id,
+    )
+    meeting_capture = (
+        meeting_capture_query
         .group_by(MeetingParticipant.person_id)
         .subquery()
     )
 
     # Get latest capture from direct sources
-    direct_capture = (
+    direct_capture_query = _apply_visibility(
         db.query(
             SourceRecord.person_id.label("person_id"),
             func.max(SourceRecord.captured_at).label("max_captured"),
@@ -213,26 +224,34 @@ def list_people(
         .filter(
             SourceRecord.person_id.isnot(None),
             SourceRecord.meeting_id.is_(None),
-        )
+        ),
+        user_id,
+    )
+    direct_capture = (
+        direct_capture_query
         .group_by(SourceRecord.person_id)
         .subquery()
     )
 
     # Open commitments from meeting-based sources
-    open_commitments = (
+    open_commitments_query = _apply_visibility(
         db.query(
             MeetingParticipant.person_id.label("person_id"),
             func.count(func.distinct(Commitment.id)).label("open_commitments"),
         )
         .join(SourceRecord, SourceRecord.meeting_id == MeetingParticipant.meeting_id)
         .join(Commitment, Commitment.source_id == SourceRecord.id)
-        .filter(Commitment.acknowledged.is_(False))
+        .filter(Commitment.acknowledged.is_(False)),
+        user_id,
+    )
+    open_commitments = (
+        open_commitments_query
         .group_by(MeetingParticipant.person_id)
         .subquery()
     )
 
     # Open commitments from direct sources
-    direct_commitments = (
+    direct_commitments_query = _apply_visibility(
         db.query(
             SourceRecord.person_id.label("person_id"),
             func.count(func.distinct(Commitment.id)).label("open_commitments"),
@@ -242,25 +261,33 @@ def list_people(
             Commitment.acknowledged.is_(False),
             SourceRecord.person_id.isnot(None),
             SourceRecord.meeting_id.is_(None),
-        )
+        ),
+        user_id,
+    )
+    direct_commitments = (
+        direct_commitments_query
         .group_by(SourceRecord.person_id)
         .subquery()
     )
 
     # Risk flags from meeting-based sources
-    risk_flags = (
+    risk_flags_query = _apply_visibility(
         db.query(
             MeetingParticipant.person_id.label("person_id"),
             func.count(func.distinct(RiskFlag.id)).label("risk_flags_count"),
         )
         .join(SourceRecord, SourceRecord.meeting_id == MeetingParticipant.meeting_id)
-        .join(RiskFlag, RiskFlag.source_id == SourceRecord.id)
+        .join(RiskFlag, RiskFlag.source_id == SourceRecord.id),
+        user_id,
+    )
+    risk_flags = (
+        risk_flags_query
         .group_by(MeetingParticipant.person_id)
         .subquery()
     )
 
     # Risk flags from direct sources
-    direct_risk_flags = (
+    direct_risk_flags_query = _apply_visibility(
         db.query(
             SourceRecord.person_id.label("person_id"),
             func.count(func.distinct(RiskFlag.id)).label("risk_flags_count"),
@@ -269,10 +296,16 @@ def list_people(
         .filter(
             SourceRecord.person_id.isnot(None),
             SourceRecord.meeting_id.is_(None),
-        )
+        ),
+        user_id,
+    )
+    direct_risk_flags = (
+        direct_risk_flags_query
         .group_by(SourceRecord.person_id)
         .subquery()
     )
+
+
 
     query = (
         db.query(
@@ -291,6 +324,9 @@ def list_people(
         .outerjoin(risk_flags, risk_flags.c.person_id == Person.id)
         .outerjoin(direct_risk_flags, direct_risk_flags.c.person_id == Person.id)
     )
+
+    if user_id:
+        query = query.filter((meeting_capture.c.person_id.isnot(None)) | (direct_capture.c.person_id.isnot(None)))
 
     # Apply role filter (case-insensitive substring match)
     if role:
@@ -327,13 +363,16 @@ def list_people(
 
     # Build observation lookup for Care mode
     observation_query = (
-        db.query(
-            SourceRecord.person_id,
-            func.max(SourceRecord.captured_at).label("last_observation_at"),
-        )
-        .filter(
-            SourceRecord.person_id.in_(all_person_ids),
-            SourceRecord.capture_type == "observation",
+        _apply_visibility(
+            db.query(
+                SourceRecord.person_id,
+                func.max(SourceRecord.captured_at).label("last_observation_at"),
+            )
+            .filter(
+                SourceRecord.person_id.in_(all_person_ids),
+                SourceRecord.capture_type == "observation",
+            ),
+            user_id,
         )
         .group_by(SourceRecord.person_id)
         .all()
@@ -737,6 +776,7 @@ def create_person_note(
 def person_timeline(
     person_id: str,
     db: Session = Depends(get_db),
+    user_id: str | None = None,
 ) -> dict:
     """
     Get person timeline including both meeting-based and direct sources.
@@ -757,12 +797,17 @@ def person_timeline(
     )
 
     # Get person-direct sources (meeting_id is null)
-    direct_sources = (
+    direct_query = (
         db.query(SourceRecord)
         .filter(
             SourceRecord.person_id == person_id,
             SourceRecord.meeting_id.is_(None),
         )
+    )
+    if user_id:
+        direct_query = direct_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+    direct_sources = (
+        direct_query
         .order_by(desc(SourceRecord.captured_at))
         .all()
     )
@@ -772,9 +817,14 @@ def person_timeline(
 
     # Add meeting-based entries
     for meeting in meetings:
-        source = (
+        source_query = (
             db.query(SourceRecord)
             .filter(SourceRecord.meeting_id == meeting.id)
+        )
+        if user_id:
+            source_query = source_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+        source = (
+            source_query
             .order_by(SourceRecord.captured_at.desc())
             .first()
         )
@@ -822,6 +872,7 @@ def person_timeline(
 def person_continuity(
     person_id: str,
     db: Session = Depends(get_db),
+    user_id: str | None = None,
 ) -> dict:
     """
     Get person continuity view with source-linked summaries.
@@ -845,12 +896,17 @@ def person_continuity(
     latest_sources: dict[str, SourceRecord] = {}
 
     if meeting_ids:
-        latest = (
+        latest_query = (
             db.query(
                 SourceRecord.meeting_id.label("meeting_id"),
                 func.max(SourceRecord.captured_at).label("max_captured"),
             )
             .filter(SourceRecord.meeting_id.in_(meeting_ids))
+        )
+        if user_id:
+            latest_query = latest_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+        latest = (
+            latest_query
             .group_by(SourceRecord.meeting_id)
             .subquery()
         )
@@ -866,12 +922,17 @@ def person_continuity(
         latest_sources = {source.meeting_id: source for source in sources}
 
     # Get direct sources for this person
-    direct_sources = (
+    direct_query = (
         db.query(SourceRecord)
         .filter(
             SourceRecord.person_id == person_id,
             SourceRecord.meeting_id.is_(None),
         )
+    )
+    if user_id:
+        direct_query = direct_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+    direct_sources = (
+        direct_query
         .order_by(desc(SourceRecord.captured_at))
         .all()
     )

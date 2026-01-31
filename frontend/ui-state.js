@@ -16,11 +16,24 @@ export function getApiBase() {
   return '';
 }
 
+export function getUserId() {
+  if (typeof localStorage === "undefined") {
+    return "";
+  }
+  return localStorage.getItem("custos_user_id") || "";
+}
+
 export function apiUrl(path) {
   const base = getApiBase();
   if (!base) return path;
-  return `${base}${path}`;
+  if (path.startsWith("/api/users")) return base + path;
+  const userId = getUserId();
+  if (!userId) return base + path;
+  const separator = path.includes("?") ? "&" : "?";
+  return base + path + separator + "user_id=" + encodeURIComponent(userId);
 }
+
+
 
 export function getApiHeaders() {
   const headers = {};

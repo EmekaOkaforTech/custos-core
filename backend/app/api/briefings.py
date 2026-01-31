@@ -36,6 +36,14 @@ def _status_for(last_source_at: datetime | None, now: datetime) -> str:
     return "ok"
 
 
+def _apply_visibility(query, user_id: str | None):
+    if not user_id:
+        return query
+    return query.filter(
+        (SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id)
+    )
+
+
 @router.get("/today")
 def get_today_briefings(
     db: Session = Depends(get_db),
@@ -43,6 +51,7 @@ def get_today_briefings(
     offline: bool = Query(False),
     cached_at: datetime | None = Query(None),
     calendar_source: str | None = Query(None),  # Story 37.5: Filter by calendar
+    user_id: str | None = Query(None),
 ) -> dict:
     now = cached_at or datetime.utcnow()
     start = datetime(now.year, now.month, now.day)
@@ -63,17 +72,17 @@ def get_today_briefings(
     results = []
     for meeting in meetings:
         source = (
-            db.query(SourceRecord)
-            .filter(SourceRecord.meeting_id == meeting.id)
+            _apply_visibility(db.query(SourceRecord)
+            .filter(SourceRecord.meeting_id == meeting.id), user_id)
             .order_by(SourceRecord.captured_at.desc())
             .first()
         )
         last_source_at = source.captured_at if source else None
         status = _status_for(last_source_at, now)
         commitments_count = (
-            db.query(func.count(Commitment.id))
+            _apply_visibility(db.query(func.count(Commitment.id))
             .join(SourceRecord, Commitment.source_id == SourceRecord.id)
-            .filter(SourceRecord.meeting_id == meeting.id)
+            .filter(SourceRecord.meeting_id == meeting.id), user_id)
             .scalar()
         )
         results.append(
@@ -104,6 +113,7 @@ def get_next_briefing(
     offline: bool = Query(False),
     cached_at: datetime | None = Query(None),
     calendar_source: str | None = Query(None),  # Story 37.5: Filter by calendar
+    user_id: str | None = Query(None),
 ) -> dict:
     now = cached_at or datetime.utcnow()
 
@@ -119,9 +129,14 @@ def get_next_briefing(
     meeting = query.order_by(Meeting.starts_at.asc()).first()
 
     if not meeting:
-        future_relevant = (
+        future_query = (
             db.query(SourceRecord, Meeting)
             .join(Meeting, SourceRecord.meeting_id == Meeting.id)
+        )
+        if user_id:
+            future_query = future_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+        future_relevant = (
+            future_query
             .filter(SourceRecord.relevant_at != None)  # noqa: E711
             .filter(SourceRecord.relevant_at >= now)
             .filter(Meeting.cancelled_at.is_(None))  # Exclude cancelled meetings (Story 37.2)
@@ -153,9 +168,14 @@ def get_next_briefing(
             "offline": offline,
         }
 
-    source = (
+    source_query = (
         db.query(SourceRecord)
         .filter(SourceRecord.meeting_id == meeting.id)
+    )
+    if user_id:
+        source_query = source_query.filter((SourceRecord.visibility == "shared") | (SourceRecord.owner_id == user_id))
+    source = (
+        source_query
         .order_by(SourceRecord.captured_at.desc())
         .first()
     )

@@ -290,7 +290,7 @@ async function startOAuthFlow(provider) {
   try {
     const response = await fetch(apiUrl(`/api/calendar/oauth/authorize?provider=${encodeURIComponent(provider)}`), {
       method: 'GET',
-      headers: getApiHeaders(),
+      headers: { ...getApiHeaders(), "Content-Type": "application/json" },
     });
 
     if (!response.ok) {
@@ -368,7 +368,7 @@ async function disconnectCalendar() {
   try {
     const response = await fetch(apiUrl('/api/calendar/connection'), {
       method: 'DELETE',
-      headers: getApiHeaders(),
+      headers: { ...getApiHeaders(), "Content-Type": "application/json" },
     });
 
     if (response.ok) {
@@ -1389,7 +1389,7 @@ if (emailPoll) {
     try {
       const response = await fetch(apiUrl("/api/email/poll"), {
         method: "POST",
-        headers: getApiHeaders(),
+        headers: { ...getApiHeaders(), "Content-Type": "application/json" },
       });
       if (!response.ok) {
         if (emailMessage) emailMessage.textContent = "Unable to poll inbox.";
@@ -1417,7 +1417,7 @@ if (summarizationForm) {
     try {
       const response = await fetch(apiUrl("/api/summarization/settings"), {
         method: "POST",
-        headers: getApiHeaders(),
+        headers: { ...getApiHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!response.ok) {
@@ -2043,7 +2043,7 @@ if (exportForm) {
     if (exportStatus) exportStatus.textContent = "Exporting...";
     const response = await fetch(apiUrl("/api/export/run"), {
       method: "POST",
-      headers: getApiHeaders(),
+      headers: { ...getApiHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify({ format: exportFormat.value }),
     });
     if (!response.ok) {
@@ -2080,5 +2080,109 @@ if (exportIcs) {
     link.click();
     URL.revokeObjectURL(url);
     if (exportIcsStatus) exportIcsStatus.textContent = "Export ready.";
+  });
+}
+
+
+const userStatus = document.getElementById("user-status");
+const userCreateForm = document.getElementById("user-create-form");
+const userCreateName = document.getElementById("user-create-name");
+const userCreateEmail = document.getElementById("user-create-email");
+const userCreatePassword = document.getElementById("user-create-password");
+const userLoginForm = document.getElementById("user-login-form");
+const userLoginIdentifier = document.getElementById("user-login-identifier");
+const userLoginPassword = document.getElementById("user-login-password");
+const householdToggle = document.getElementById("household-mode");
+const householdStatus = document.getElementById("household-status");
+
+function updateUserStatus() {
+  if (!userStatus) return;
+  const userId = localStorage.getItem("custos_user_id");
+  const userName = localStorage.getItem("custos_user_name");
+  if (userId) {
+    userStatus.textContent = "Active user: " + (userName || userId);
+  } else {
+    userStatus.textContent = "No user selected.";
+  }
+}
+
+function updateHouseholdStatus() {
+  if (!householdStatus) return;
+  const mode = localStorage.getItem("custos_default_visibility") || "personal";
+  if (householdToggle) householdToggle.checked = mode === "shared";
+  householdStatus.textContent = mode === "shared"
+    ? "Shared captures are the default."
+    : "Personal captures are the default.";
+}
+
+updateUserStatus();
+updateHouseholdStatus();
+
+if (householdToggle) {
+  householdToggle.addEventListener("change", () => {
+    const mode = householdToggle.checked ? "shared" : "personal";
+    localStorage.setItem("custos_default_visibility", mode);
+    updateHouseholdStatus();
+  });
+}
+
+if (userCreateForm) {
+  userCreateForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name = userCreateName ? userCreateName.value.trim() : "";
+    const email = userCreateEmail ? userCreateEmail.value.trim() : "";
+    const password = userCreatePassword ? userCreatePassword.value : "";
+    if (!name || !password) {
+      if (userStatus) userStatus.textContent = "Name and password are required.";
+      return;
+    }
+    try {
+      const response = await fetch(apiUrl("/api/users"), {
+        method: "POST",
+        headers: { ...getApiHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: email || null, password }),
+      });
+      if (!response.ok) {
+        if (userStatus) userStatus.textContent = "Unable to create user.";
+        return;
+      }
+      const data = await response.json();
+      localStorage.setItem("custos_user_id", data.id);
+      localStorage.setItem("custos_user_name", data.name || data.id);
+      updateUserStatus();
+      if (userCreatePassword) userCreatePassword.value = "";
+    } catch (err) {
+      if (userStatus) userStatus.textContent = "Unable to create user.";
+    }
+  });
+}
+
+if (userLoginForm) {
+  userLoginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const identifier = userLoginIdentifier ? userLoginIdentifier.value.trim() : "";
+    const password = userLoginPassword ? userLoginPassword.value : "";
+    if (!identifier || !password) {
+      if (userStatus) userStatus.textContent = "Email/name and password are required.";
+      return;
+    }
+    try {
+      const response = await fetch(apiUrl("/api/users/login"), {
+        method: "POST",
+        headers: { ...getApiHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ email: identifier, name: identifier, password }),
+      });
+      if (!response.ok) {
+        if (userStatus) userStatus.textContent = "Unable to authenticate user.";
+        return;
+      }
+      const data = await response.json();
+      localStorage.setItem("custos_user_id", data.id);
+      localStorage.setItem("custos_user_name", data.name || data.id);
+      updateUserStatus();
+      if (userLoginPassword) userLoginPassword.value = "";
+    } catch (err) {
+      if (userStatus) userStatus.textContent = "Unable to authenticate user.";
+    }
   });
 }

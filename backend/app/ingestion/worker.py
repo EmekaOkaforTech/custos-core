@@ -133,6 +133,8 @@ def _process_job(session: Session, job: IngestionJob):
             dedupe_key=dedupe_key,
             index_in_memory=bool(job.index_in_memory),
             people_ids=job.people_ids if job.people_ids is not None else "[]",
+            owner_id=job.owner_id,
+            visibility=job.visibility or "personal",
         )
         session.add(source)
         job.source_id = source_id

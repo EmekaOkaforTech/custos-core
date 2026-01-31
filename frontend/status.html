@@ -325,6 +325,32 @@
       <p class="muted" id="summarization-status">Summaries are off by default.</p>
     </section>
 
+    <section class="card" id="user-card">
+      <h3>Users</h3>
+      <p class="muted" id="user-status">No user selected.</p>
+      <form class="filters" id="user-create-form">
+        <label for="user-create-name">Name</label>
+        <input id="user-create-name" name="name" />
+        <label for="user-create-email">Email (optional)</label>
+        <input id="user-create-email" name="email" />
+        <label for="user-create-password">Password</label>
+        <input id="user-create-password" name="password" type="password" />
+        <button type="submit">Create user</button>
+      </form>
+      <form class="filters" id="user-login-form">
+        <label for="user-login-identifier">Email or name</label>
+        <input id="user-login-identifier" name="identifier" />
+        <label for="user-login-password">Password</label>
+        <input id="user-login-password" name="password" type="password" />
+        <button type="submit">Set active user</button>
+      </form>
+      <label class="checkbox-row">
+        <input id="household-mode" type="checkbox" />
+        Household mode (shared captures by default)
+      </label>
+      <p class="muted" id="household-status">Personal captures are the default.</p>
+    </section>
+
     <section class="section" id="closure-section">
       <div class="section-header">
         <h3>Commitment closure</h3>
@@ -445,6 +471,12 @@
           <label for="capture-index-memory">Include in memory</label>
           <input id="capture-index-memory" type="checkbox" />
         </div>
+
+        <div class="checkbox-row" id="capture-visibility-group">
+          <label for="capture-visibility">Share with household</label>
+          <input id="capture-visibility" type="checkbox" />
+        </div>
+        <p class="muted">Shared captures are visible to all users.</p>
 
         <div class="audio-group hidden" id="capture-audio-group">
           <p class="muted">Audio recording</p>

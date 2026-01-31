@@ -6,7 +6,10 @@ from .calendar_connection import CalendarConnection
 from .network_settings import NetworkSettings
 from .nas_backup_target import NasBackupTarget
 from .nas_sync_settings import NasSyncSettings
+from .analytics_daily import AnalyticsDaily
 from .summarization_settings import SummarizationSettings
+from .query_history import QueryHistory
+from .user import User
 from .meeting import Meeting
 from .meeting_participant import MeetingParticipant
 from .person import Person
@@ -29,7 +32,10 @@ __all__ = [
     'NetworkSettings',
     'NasBackupTarget',
     'NasSyncSettings',
+    'AnalyticsDaily',
     'SummarizationSettings',
+    'QueryHistory',
+    'User',
     'Meeting',
     'MeetingParticipant',
     'Person',

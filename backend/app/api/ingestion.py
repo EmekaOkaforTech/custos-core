@@ -3,7 +3,7 @@ import hashlib
 from uuid import uuid4
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 import json
 
 from pydantic import BaseModel
@@ -26,6 +26,8 @@ class IngestionRequest(BaseModel):
     relevant_at: datetime | None = None
     commitment_relevant_by: datetime | None = None
     index_in_memory: bool | None = None
+    owner_id: str | None = None
+    visibility: str | None = None
 
 
 class IngestionResponse(BaseModel):
@@ -117,6 +119,10 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         if request.index_in_memory is not None
         else request.capture_type == "reflection"
     )
+    visibility = request.visibility or "personal"
+    if visibility not in ("personal", "shared"):
+        raise HTTPException(status_code=400, detail="Invalid visibility")
+    owner_id = request.owner_id
     dedupe_key = _dedupe_key(request.meeting_id, request.capture_type, normalized_payload, people_json, relevant_at)
     if normalized_payload:
         cutoff = datetime.utcnow() - timedelta(seconds=DEDUP_WINDOW_SECONDS)
@@ -145,6 +151,8 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
         commitment_relevant_by=request.commitment_relevant_by,
         index_in_memory=index_in_memory,
         dedupe_key=dedupe_key,
+        owner_id=owner_id,
+        visibility=visibility,
         status="queued",
     )
     db.add(job)
@@ -153,15 +161,22 @@ def create_ingestion(request: IngestionRequest, db: Session = Depends(get_db)) -
 
 
 @router.get("/recent", response_model=list[RecentCapture])
-def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[RecentCapture]:
+def get_recent_ingestion(limit: int = 5, user_id: str | None = Query(None), db: Session = Depends(get_db)) -> list[RecentCapture]:
     if limit < 1:
         raise HTTPException(status_code=400, detail="limit must be >= 1")
     if limit > 20:
         raise HTTPException(status_code=400, detail="limit must be <= 20")
-    jobs = (
+    jobs_query = (
         db.query(IngestionJob)
         .filter(IngestionJob.status == "succeeded")
         .filter((IngestionJob.error == None) | (IngestionJob.error != "deduped"))  # noqa: E711
+    )
+    if user_id:
+        jobs_query = jobs_query.filter(
+            (IngestionJob.visibility == "shared") | (IngestionJob.owner_id == user_id)
+        )
+    jobs = (
+        jobs_query
         .order_by(IngestionJob.completed_at.desc(), IngestionJob.created_at.desc())
         .limit(limit)
         .all()
@@ -235,6 +250,7 @@ def get_recent_ingestion(limit: int = 5, db: Session = Depends(get_db)) -> list[
 def get_recent_decisions(
     days: int = 7,
     limit: int = 5,
+    user_id: str | None = Query(None),
     db: Session = Depends(get_db),
 ) -> list[RecentCapture]:
     if days < 1 or days > 30:
@@ -243,11 +259,18 @@ def get_recent_decisions(
         raise HTTPException(status_code=400, detail="limit must be between 1 and 20")
     cutoff = datetime.utcnow() - timedelta(days=days)
     fetch_limit = min(max(limit * 5, limit), 200)
-    jobs = (
+    jobs_query = (
         db.query(IngestionJob)
         .filter(IngestionJob.status == "succeeded")
         .filter(IngestionJob.capture_type == "decision")
         .filter(IngestionJob.created_at >= cutoff)
+    )
+    if user_id:
+        jobs_query = jobs_query.filter(
+            (IngestionJob.visibility == "shared") | (IngestionJob.owner_id == user_id)
+        )
+    jobs = (
+        jobs_query
         .order_by(IngestionJob.completed_at.desc(), IngestionJob.created_at.desc())
         .limit(fetch_limit)
         .all()
